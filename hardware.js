@@ -1,6 +1,32 @@
+/**
+ * @file hardware.js
+ * @brief ハードウェア関連の実装ファイル
+ */
 
-class Motor
-{
+//------------------------------------------
+/**
+ * @brief ハードウェアモデルクラス
+ */
+class HardwareModel {
+    constructor() {
+        this.obniz = new Obniz("6453-5471", { access_token:"j6S9JqzEUQwLg5Q6WpVgDDabnHkwx4_pNTe3L2Fw2ZGSAAg5qqFG10_ugfd7geHN" })
+    }
+
+    onconnect = () => {
+        this.obniz.onconnect = async function() {
+            document.getElementById("t1").innerHTML = "";
+            var driver = obniz.wired("PCA9685", {i2c:i2c, address:0x40  });
+            driver.freq(60);    
+          }
+      }
+    
+}
+
+//------------------------------------------
+/**
+ * @brief モーターのモデルクラス
+ */
+class Motor {
     constructor()
     {
       this._pulse = 0;
@@ -25,6 +51,7 @@ class Motor
 
 }
 
+//------------------------------------------
 /**
  * @brief パッド制御のモデルクラス
  */
@@ -56,6 +83,9 @@ class RobotArms
 }
 
 
+/**
+ * @brief ロボットアーム制御クラス
+ */
 class RobotArmsController
 {
     #_hardware;
@@ -65,8 +95,12 @@ class RobotArmsController
         this.#_hardware = hardwere;
     }
 
-    drive(pluseCount) {
-        console.log("name=" + pluseCount.name + ", updown=" + pluseCount.upDown + ", leftRight=" + pluseCount.leftRight);
+    drive(pulseCounts) {
+        console.log("name=" + pulseCounts.name + ", updown=" + pulseCounts.upDown + ", leftRight=" + pulseCounts.leftRight);
+    }
+
+    arm2drive(pulseCounts) {
+
     }
 
 }

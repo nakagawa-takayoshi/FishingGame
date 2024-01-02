@@ -104,14 +104,80 @@ class FishingGame
 }
 
 
+//------------------------------------------
+/**
+ * @brief バーチャルパッドベース
+ */
+class VPadBase {
+  
+  pad = undefined;
+
+  constructor() {
+    this.resizePadBase();
+    window.addEventListener('resize', ()=>{this.resizePadBase();});
+  }
+
+  resizePadBase() {
+    let styleDisplay = "block";//ゲームパッド対策
+    if(this.pad != undefined){
+      styleDisplay = this.pad.style.display;//ゲームパッド対策
+      while(this.pad.firstChild){
+        this.pad.removeChild(this.pad.firstChild);
+      }
+      this.pad.parentNode.removeChild(this.pad);
+    }
+
+    const screen = document.getElementById("game-screen");//ゲーム画面
+  
+    //HTMLのdivでvpad作成
+    const pad = document.createElement('div');
+    document.body.appendChild(pad);
+    this.pad = pad;
+    pad.id = "pad";
+    pad.style.width = screen.style.width;
+    pad.style.display = styleDisplay;
+
+    //タッチで拡大とか起こるのを防ぐ
+    pad.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+    });
+    pad.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+    });
+
+    let direction;
+    //横長の場合位置変更
+    if(window.innerWidth > window.innerHeight){
+      pad.style.width = `${window.innerWidth}px`;
+      pad.style.innerWidth = window.innerWidth;
+      pad.style.position = "absolute";//画面の上にかぶせるため
+      pad.style.backgroundColor = "transparent";//透明
+      pad.style.bottom = "0";//下に固定
+      direction = "horizon";
+    }
+    else {
+      direction = "vertical";
+      pad.style.innerWidth = window.innerWidth;
+      pad.style.bottom = "0";//下に固定
+    }
+
+    const height = Number(screen.style.height.split('px')[0]) * 0.5;//ゲーム画面の半分の高さをゲームパッドの高さに
+    pad.style.height = `${height}px`;
+    this.height = height;
+  }
+}
+
+
 /******************************************************
  * バーチャルパッド
  ******************************************************/
 class Vpad {
     #_descriptor = "";
+    #_vpadBase = null;
 
-    constructor(input, descriptor){
+    constructor(vpadBase, input, descriptor){
       this.#_descriptor = descriptor;
+      this.#_vpadBase = vpadBase;
       this.input = input;      //InputManagerのinput
       this.resizePad();
       // リサイズイベントの登録
@@ -119,56 +185,19 @@ class Vpad {
     }
     //画面サイズが変わるたびにvpadも作り変える
     resizePad(){
-      let styleDisplay = "block";//ゲームパッド対策
-      //すでにあれば一度削除する
-      if(this.pad != undefined){
-        styleDisplay = this.pad.style.display;//ゲームパッド対策
-        while(this.pad.firstChild){
-          this.pad.removeChild(this.pad.firstChild);
-        }
-        this.pad.parentNode.removeChild(this.pad);
-      }
-  
-      const screen = document.getElementById("game-screen");//ゲーム画面
-  
-      //HTMLのdivでvpad作成
-      const pad = document.createElement('div');
-      document.body.appendChild(pad);
-      this.pad = pad;
-      pad.id = "pad";
-      pad.style.width = screen.style.width;
-      pad.style.display = styleDisplay;  
-      
-      //タッチで拡大とか起こるのを防ぐ
-      pad.addEventListener("touchstart", (e) => {
-        e.preventDefault();
-      });
-      pad.addEventListener("touchmove", (e) => {
-        e.preventDefault();
-      });
-  
+      const vpad = this.#_vpadBase;
+      const pad = vpad.pad;
+
       let direction;
       //横長の場合位置変更
       if(window.innerWidth > window.innerHeight){
-        pad.style.width = `${window.innerWidth}px`;
-        pad.style.innerWidth = window.innerWidth;
-        pad.style.position = "absolute";//画面の上にかぶせるため
-        pad.style.backgroundColor = "transparent";//透明
-        pad.style.bottom = "0";//下に固定
         direction = "horizon";
       }
       else {
-        pad.style.innerWidth = window.innerWidth;
         direction = "vertical";
-        if (this.#_descriptor == "right") {
-          pad.style.position = "absolute";//画面の上にかぶせるため
-        }
       }
-      const height = Number(screen.style.height.split('px')[0]) * 0.5;//ゲーム画面の半分の高さをゲームパッドの高さに
-      pad.style.height = `${height}px`;
-      
-      //方向キー作成
-      this.leftPad = new DirKey(this.pad, this.input, height, direction, this.#_descriptor);      
+            //方向キー作成
+      this.leftPad = new DirKey(pad, this.input, vpad.height, direction, this.#_descriptor);      
     }
   }
   
@@ -443,8 +472,9 @@ class Container extends PIXI.Container {
 //
 class VPadInpuManager {
   constructor(robotArms) {
-    this.inputLeft = new InputManager("left", robotArms.leftPadControlModel);
-    this.inputRight = new InputManager("right", robotArms.rightPadControlModel);
+    const pad = new VPadBase();
+    this.inputLeft = new InputManager(pad, "left", robotArms.leftPadControlModel);
+    this.inputRight = new InputManager(pad, "right", robotArms.rightPadControlModel);
   }
 }
 
@@ -454,7 +484,7 @@ class VPadInpuManager {
 class InputManager {
   #_descriptor = "";
 
-  constructor(descriptor, padControlModel) {
+  constructor(pad, descriptor, padControlModel) {
     this.#_descriptor = descriptor;
     this.UpDownControl = 0;
     this.LeftRightControl = 0
@@ -505,10 +535,11 @@ class InputManager {
 
     //スマホ・タブレットの時だけv-pad表示
     if (navigator.userAgent.match(/iPhone|iPad|Android/)) {
-      this.vpad = new Vpad(this.input, descriptor);
+      document.getElementById("t1").innerHTML = "";
+      this.vpad = new Vpad(pad, this.input, descriptor);
     }
     else {
-      document.getElementById("t1").innerHTML = "<div color: white;>スマホでアクセスして下さい。</div>";
+      document.getElementById("t1").innerHTML = "<div style=\"color: white;\">スマホでアクセスして下さい。</div>";
     }
 
   }

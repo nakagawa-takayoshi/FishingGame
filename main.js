@@ -2,8 +2,8 @@
 const Config = {
     //画面の解像度
     Screen: {
-      Width: 128,//幅
-      Height: 128,//高さ
+      Width: 256,//幅
+      Height: 256,//高さ
       BackGroundColor: 0xffffff,//背景色
     },
     Keys: { //キーボード入力
@@ -21,7 +21,7 @@ let input;
 
 window.onload = () => {
     fishing = new FishingGame(Config.Screen.Width, Config.Screen.Height, Config.Screen.BackGroundColor);
-    document.getElementById("t1").innerHTML = "<div color:white>>Hello world!</div>";
+    document.getElementById("t1").innerHTML = "<div style=\"color:white\">Loading..</div>";
     //cssのidを設定
     fishing.app.view.id = "game-screen";    
     robotArms = fishing.robotArms;
@@ -37,21 +37,6 @@ window.onload = () => {
 
 }
 
-class FishingRobot
-{
-  constructor()
-  {
-    this.obniz = new Obniz("6453-5471", { access_token:"j6S9JqzEUQwLg5Q6WpVgDDabnHkwx4_pNTe3L2Fw2ZGSAAg5qqFG10_ugfd7geHN" })
-  }
-
-  onconnect = () => {
-    this.obniz.onconnect = async function() {
-        document.getElementById("t1").innerHTML = "";
-        var driver = obniz.wired("PCA9685", {i2c:i2c, address:0x40  });
-        driver.freq(60);    
-      }
-  }
-}
 
 
 let bullet;
