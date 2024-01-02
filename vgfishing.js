@@ -1,0 +1,552 @@
+class FishingGame
+{
+    constructor(width, height, color) 
+    {
+        const pixiApp = new PIXI.Application({
+            width: width, 
+            height: height,                       
+            backgroundColor: color,      
+            resolution: 1,
+            autoDensity: true
+        })
+
+        document.body.appendChild(pixiApp.view);
+        //右クリックで出るメニューを非表示に
+        pixiApp.view.addEventListener("contextmenu", function(e){
+            e.preventDefault();
+        }, false);
+        
+        //更新処理
+        pixiApp.ticker.add((delta) => {
+            if(this.currentScene){
+            this.currentScene.update(delta);
+            }
+
+        });
+        
+        // ロボットアームのインスタンスを作成
+        this.robotArms = new RobotArms();
+
+        //使いやす場所に
+        this.app = pixiApp;
+        
+        // リサイズイベントの登録
+        window.addEventListener('resize', () => {this.resizeCanvas();});
+        this.resizeCanvas(); 
+
+        //ブラウザの種類を取得
+        const browser = (function(ua) {
+        if (/MSIE|Trident/.test(ua)) {
+            return 'ie';
+        } else if (/Edg/.test(ua)) {
+            return 'edge';
+        } else if (/Android/.test(ua)) {
+            return 'android';
+        } else if (/Chrome/.test(ua)) {
+            return 'chrome';
+        } else if (/(?:Macintosh|Windows).*AppleWebKit/.test(ua)) {
+            return 'safari';
+        } else if (/(?:iPhone|iPad|iPod).*AppleWebKit/.test(ua)) {
+            return 'mobilesafari';
+        } else if (/Firefox/.test(ua)) {
+            return 'firefox';
+        } else {
+            return '';
+        }
+        }(window.navigator.userAgent));
+
+      }
+
+  //アセット読み込み
+    preload(){
+        this.onload();//読み込み完了でonload()実行
+    }
+
+  //アセット読み込み後に実行される(今は空っぽ))
+    onload = () => {};
+
+  //canvas のりサイズ処理を行う
+    resizeCanvas(){
+        const renderer = this.app.renderer;
+    
+        let canvasWidth;
+        let canvasHeight;
+    
+        const rendererHeightRatio = renderer.height / renderer.width;
+        const windowHeightRatio = window.innerHeight / window.innerWidth;
+    
+        // 画面比率に合わせて縦に合わせるか横に合わせるか決める
+        if (windowHeightRatio > rendererHeightRatio) {//縦長
+        canvasWidth = window.innerWidth;
+        canvasHeight = window.innerWidth * (renderer.height / renderer.width);
+        } else {//横長
+        canvasWidth = window.innerHeight * (renderer.width / renderer.height);
+        canvasHeight = window.innerHeight;
+        }
+    
+        this.app.view.style.width  = `${canvasWidth}px`;
+        this.app.view.style.height = `${canvasHeight}px`;
+    }
+
+    //シーンの置き換え処理
+    replaceScene(newScene){
+        if(this.currentScene){//現在のシーンを廃棄
+        this.currentScene.destroy();
+        }
+        if(this.waitingScene){//waitingSceneもあれば廃棄
+        this.waitingScene.destroy();
+        this.isPushedScene = false;
+        }
+        this.app.stage.addChild(newScene);
+        this.currentScene = newScene;
+    }
+
+}
+
+
+/******************************************************
+ * バーチャルパッド
+ ******************************************************/
+class Vpad {
+    #_descriptor = "";
+
+    constructor(input, descriptor){
+      this.#_descriptor = descriptor;
+      this.input = input;      //InputManagerのinput
+      this.resizePad();
+      // リサイズイベントの登録
+      window.addEventListener('resize', ()=>{this.resizePad();});
+    }
+    //画面サイズが変わるたびにvpadも作り変える
+    resizePad(){
+      let styleDisplay = "block";//ゲームパッド対策
+      //すでにあれば一度削除する
+      if(this.pad != undefined){
+        styleDisplay = this.pad.style.display;//ゲームパッド対策
+        while(this.pad.firstChild){
+          this.pad.removeChild(this.pad.firstChild);
+        }
+        this.pad.parentNode.removeChild(this.pad);
+      }
+  
+      const screen = document.getElementById("game-screen");//ゲーム画面
+  
+      //HTMLのdivでvpad作成
+      const pad = document.createElement('div');
+      document.body.appendChild(pad);
+      this.pad = pad;
+      pad.id = "pad";
+      pad.style.width = screen.style.width;
+      pad.style.display = styleDisplay;  
+      
+      //タッチで拡大とか起こるのを防ぐ
+      pad.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+      });
+      pad.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+      });
+  
+      let direction;
+      //横長の場合位置変更
+      if(window.innerWidth > window.innerHeight){
+        pad.style.width = `${window.innerWidth}px`;
+        pad.style.innerWidth = window.innerWidth;
+        pad.style.position = "absolute";//画面の上にかぶせるため
+        pad.style.backgroundColor = "transparent";//透明
+        pad.style.bottom = "0";//下に固定
+        direction = "horizon";
+      }
+      else {
+        pad.style.innerWidth = window.innerWidth;
+        direction = "vertical";
+        if (this.#_descriptor == "right") {
+          pad.style.position = "absolute";//画面の上にかぶせるため
+        }
+      }
+      const height = Number(screen.style.height.split('px')[0]) * 0.5;//ゲーム画面の半分の高さをゲームパッドの高さに
+      pad.style.height = `${height}px`;
+      
+      //方向キー作成
+      this.leftPad = new DirKey(this.pad, this.input, height, direction, this.#_descriptor);      
+    }
+  }
+  
+  //方向キークラス
+  class DirKey {
+     constructor(parent, input, padHeight, direction, alignment) {
+      this.isTouching = false;
+      this.originX = 0;
+      this.originY = 0;
+      this.input = input;
+      let offset;
+
+      //HTMLのdivでキーのエリアを作成
+      const div = document.createElement('div');
+      parent.appendChild(div); 
+      div.className = "dir-key";
+      div.style.innerWidth = padHeight * 0.8;
+      div.style.width = div.style.height = `${padHeight * 0.8}px`;
+      div.style.left = `${padHeight * 0.05}px`;
+      div.style.top = `${padHeight * 0.1}px`;
+      this.maxRadius = padHeight * 0.15;//中心移動させる半径
+      this.emptySpace = padHeight * 0.05;//あそび
+
+      if (alignment == "left")
+      {
+        div.style.marginLeft = 0;
+        offset = `${parent.style.innerWidth - div.style.innerWidth}px`;
+      }
+      else
+      {
+        const marginRight = screen.width * ((direction == "vertical") ? 0.2 : 0.03);
+        div.style.marginLeft = `${parent.style.innerWidth - div.style.innerWidth - marginRight}px`;
+      }
+
+      this.alignment = alignment;
+
+      //十字キーのボタン(張りぼて。タッチイベントはない)
+      const up = document.createElement('div');
+      up.className = "dir up";
+      div.appendChild(up);
+      const left = document.createElement('div');
+      left.className = "dir left";
+      div.appendChild(left);
+      const right = document.createElement('div');
+      right.className = "dir right";
+      div.appendChild(right);
+      const down = document.createElement('div');
+      down.className = "dir down";
+      div.appendChild(down);
+      const mid = document.createElement('div');
+      mid.className = "dir mid";
+      div.appendChild(mid);
+      const circle = document.createElement('div');
+      circle.className = "circle";
+      mid.appendChild(circle);
+      
+      //タッチイベント
+      div.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        this.isTouching = true;    
+        //タッチした位置を原点にする
+        this.originX = e.targetTouches[0].clientX;
+        this.originY = e.targetTouches[0].clientY;
+      });
+  
+      div.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        if(!this.isTouching) return;
+        dirReset();//からなず一度リセット
+        
+        //タッチ位置を取得
+        const posX = e.targetTouches[0].clientX;
+        const posY = e.targetTouches[0].clientY;
+  
+        //原点からの移動量を計算
+        let vecY = posY - this.originY;
+        let vecX = posX - this.originX;
+        let vec = Math.sqrt(vecX * vecX + vecY * vecY);
+        if(vec < this.emptySpace)return;//移動が少ない時は反応しない(遊び)
+  
+        const rad = Math.atan2(posY - this.originY, posX - this.originX);
+        const y = Math.sin(rad);
+        const x = Math.cos(rad);
+  
+        //移動幅が大きいときは中心を移動させる
+        if(vec > this.maxRadius){
+          this.originX = posX - x * this.maxRadius;
+          this.originY = posY - y * this.maxRadius;
+        }
+       
+        const abs_x = Math.abs(x);
+        const abs_y = Math.abs(y);
+        if(abs_x > abs_y){//xの方が大きい場合左右移動となる
+          if(x < 0){//マイナスであれば左
+            input.keys.Left = true;
+          }else{
+            input.keys.Right = true;
+          }
+          if(abs_x <= abs_y * 2){//2yがxより大きい場合斜め入力と判断
+            if(y < 0){//マイナスであれば上
+              input.keys.Up = true;
+            }else{
+              input.keys.Down = true;
+            }
+          }
+        }else{//yの方が大きい場合上下移動となる
+          if(y < 0){//マイナスであれば上
+            input.keys.Up = true;
+          }else{
+            input.keys.Down = true;
+          }
+          if(abs_y <= abs_x * 2){//2xがyより大きい場合斜め入力と判断
+            if(x < 0){//マイナスであれば左
+              input.keys.Left = true;
+            }else{
+              input.keys.Right = true;
+            }
+          }
+        }    
+      });
+      
+      div.addEventListener("touchend", (e) => {
+        dirReset();
+      });
+  
+      const dirReset = () => {
+        this.input.keys.Right = this.input.keys.Left = this.input.keys.Up = this.input.keys.Down = false;
+      }
+    }
+  }
+  
+
+/***********************************************
+ * Graphicsにupdate機能追加
+ * いくつかの図形をすぐかけるようにした
+ ***********************************************/
+class Graphics extends PIXI.Graphics {
+    constructor(){
+      super();
+      this.isUpdateObject = true;
+      this.isDestroyed = false;
+      this.age = 0; 
+    }
+    destroy() {
+      super.destroy();
+      this.isDestroyed = true;
+    }
+    update(delta){
+      this.age++;
+    }
+    line(x, y, x2, y2, thickness, color){
+      this.lineStyle(thickness, color);
+      this.moveTo(x, y);
+      this.lineTo(x2, y2);
+      this.lineStyle();//解除(他のにも影響がでるため) 
+    }
+    rectFill(x, y, w, h, color){
+      this.beginFill(color);
+      this.drawRect(x, y, w, h);
+      this.endFill();
+    }
+    rect(x, y, w, h, thickness, color){
+      this.lineStyle(thickness, color, 1, 0);
+      this.drawRect(x, y, w, h);
+      this.lineStyle();
+    }
+    circFill(x, y, radius, color){
+      this.beginFill(color);
+      this.drawCircle(x, y, radius);
+      this.endFill();
+    }
+    circ(x, y, radius, thickness, color){
+      this.lineStyle(thickness, color, 1, 0);
+      this.drawCircle(x, y, radius);
+      this.lineStyle();
+    }
+    //星型または正多角形のデータ計算用
+    makeStarData(x, y, points, outerRadius, innerRadius){
+      if(points < 3){//3未満は空の配列を返す(何も表示されない)
+        return [];
+      }
+      let step = (Math.PI * 2) / points;//角度
+      let halfStep = step / 2;
+      const data = [];
+      let dx, dy;
+  
+      const halfPI = Math.PI/2;//起点を90度ずらしたいので
+      for (let n = 1; n <= points; ++n) {
+        if(innerRadius){
+          dx = x + Math.cos(step * n - halfStep - halfPI) * innerRadius;
+          dy = y + Math.sin(step * n - halfStep - halfPI) * innerRadius;
+          data.push(dx, dy);
+        }      
+        dx = x + Math.cos(step * n - halfPI) * outerRadius;
+        dy = y + Math.sin(step * n - halfPI) * outerRadius;
+        data.push(dx, dy);
+      }
+      return data;
+    }
+    starFill(x, y, points, outerRadius, innerRadius, color){
+      this.beginFill(color);
+      this.drawPolygon(this.makeStarData(x, y, points, outerRadius, innerRadius));
+      this.endFill();
+    }
+    star(x, y, points, outerRadius, innerRadius, thickness, color){
+      this.lineStyle(thickness, color, 1, 0);
+      this.drawPolygon(this.makeStarData(x, y, points, outerRadius, innerRadius));
+      this.lineStyle();
+    }
+    regPolyFill(x, y, points, radius, color){
+      this.beginFill(color);
+      this.drawPolygon(this.makeStarData(x, y, points, radius));
+      this.endFill();
+    }
+    regPoly(x, y, points, radius, thickness, color){
+      this.lineStyle(thickness, color, 1, 0);
+      this.drawPolygon(this.makeStarData(x, y, points, radius));
+      this.lineStyle();
+    }
+}
+
+  /*********************************
+ * PIXI.Containerにupdate機能を追加
+ *********************************/
+class Container extends PIXI.Container {
+    constructor(){
+      super();
+      this.isUpdateObject = true;
+      this.isDestroyed = false;
+      this.objectsToUpdate = [];
+      this.age = 0; 
+    }
+    //メインループで更新処理を行うべきオブジェクトの登録
+    registerUpdatingObject(object) {
+      this.objectsToUpdate.push(object);
+    }
+    //更新処理を行うべきオブジェクトを更新する
+    updateRegisteredObjects(delta) {
+      const nextObjectsToUpdate = [];
+      for (let i = 0; i < this.objectsToUpdate.length; i++) {
+        const obj = this.objectsToUpdate[i];
+        if (!obj || obj.isDestroyed) {
+          continue;
+        }
+        obj.update(delta);
+        nextObjectsToUpdate.push(obj);
+      }
+      this.objectsToUpdate = nextObjectsToUpdate;
+    }
+    addChild(obj){
+      super.addChild(obj);
+      if(obj.isUpdateObject){//フラグを持っていれば登録
+        this.registerUpdatingObject(obj);
+      }
+    }
+    removeChild(obj){//取り除く処理
+      super.removeChild(obj);
+      obj.isDestroyed = true;//破壊と同じにした
+    }
+    destroy() {
+      super.destroy();
+      this.isDestroyed = true;
+    }
+    update(delta){
+      this.updateRegisteredObjects(delta);
+      this.age++;
+    }
+}
+
+//
+// バーチャルパッドマネージャクラス
+//
+class VPadInpuManager {
+  constructor(robotArms) {
+    this.inputLeft = new InputManager("left", robotArms.leftPadControlModel);
+    this.inputRight = new InputManager("right", robotArms.rightPadControlModel);
+  }
+}
+
+//
+// 入力マネージャー
+//
+class InputManager {
+  #_descriptor = "";
+
+  constructor(descriptor, padControlModel) {
+    this.#_descriptor = descriptor;
+    this.UpDownControl = 0;
+    this.LeftRightControl = 0
+    this.padControlModel = padControlModel;
+
+    //方向入力チェック用定数
+    this.keyDirections = {
+      UP: 1,
+      UP_RIGHT: 3,
+      RIGHT: 2,
+      DOWN_RIGHT: 6,
+      DOWN: 4,
+      DOWN_LEFT: 12,
+      LEFT: 8,
+      UP_LEFT: 9,
+      NOTE : 10,
+    };
+    //キーの状態管理定数
+    this.keyStatus = {
+      HOLD: 2,
+      DOWN: 1,
+      UNDOWN: 0,
+      RELEASE: -1,
+    };
+    //キーの状態管理用変数
+    this.input = {
+      //入力されたキーのチェック用
+      keys: {
+        Up: false,
+        Right: false,
+        Down: false,
+        Left: false,
+        A: false,
+        B: false,
+        Start: false
+      },
+      //一つ前のキーの状態管理用
+      keysPrev: {
+        Up: false,
+        Right: false,
+        Down: false,
+        Left: false,
+        A: false,
+        B: false,
+        Start: false
+      },
+   };
+
+    //スマホ・タブレットの時だけv-pad表示
+    if (navigator.userAgent.match(/iPhone|iPad|Android/)) {
+      this.vpad = new Vpad(this.input, descriptor);
+    }
+    else {
+      document.getElementById("t1").innerHTML = "<div color: white;>スマホでアクセスして下さい。</div>";
+    }
+
+  }
+
+//方向キー入力チェック
+checkDirection() {
+  let direction = 0;//初期化
+  if(this.input.keys.Up){
+      direction += this.keyDirections.UP;
+  }
+  if(this.input.keys.Right){
+    direction += this.keyDirections.RIGHT;
+  }
+  if(this.input.keys.Down){
+    direction += this.keyDirections.DOWN;
+  }
+  if(this.input.keys.Left){
+    direction += this.keyDirections.LEFT;
+  }
+  return direction;
+}
+
+//ボタンの入力状態をチェックして返す
+checkButton(key) {
+  if(this.input.keys[key]){
+    if(this.input.keysPrev[key] == false){
+      this.input.keysPrev[key] = true;
+      return this.keyStatus.DOWN;//押されたとき
+    }
+    return this.keyStatus.HOLD;//押しっぱなし
+  }else{
+    if(this.input.keysPrev[key] == true){
+      this.input.keysPrev[key] = false;
+      return this.keyStatus.RELEASE;//ボタンを離した時
+    }
+    return this.keyStatus.UNDOWN;//押されていない
+  }
+}
+}
+
+
