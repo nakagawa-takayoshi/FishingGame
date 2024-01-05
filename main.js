@@ -105,12 +105,16 @@ class MainScene extends Container {
 
     // 右パッドのボタンチェック
     this.onButtonRelease = () => {
-      controller.drive(this.#Prop.leftKeyCount);
+      const keyProp = this.#Prop.leftKeyCount;
+      controller.drive(keyProp);
+      this.resetDirection(keyProp);
     }
     const resultLeft = this.checkButton(this.inputManager.inputLeft, this.#Prop.leftKeyCount);
     // 左パッドのボタンチェック
     this.onButtonRelease = () => {
-      controller.drive(this.#Prop.rightKeyCount);
+      const keyProp = this.#Prop.rightKeyCount;
+      controller.drive(keyProp);
+      this.resetDirection(keyProp);
     }
     const resuktRight = this.checkButton(this.inputManager.inputRight, this.#Prop.rightKeyCount);
     this.onButtonRelease = () => { }
@@ -164,28 +168,24 @@ class MainScene extends Container {
     if (input.checkButton("Up") == input.keyStatus.RELEASE) {
       //上方向を離した時
       this.onButtonRelease(output);
-      this.resetDirection(output);
       return input.keyStatus.RELEASE;
     }
 
     if (input.checkButton("Down") == input.keyStatus.RELEASE) {
       //下方向を離した時
       this.onButtonRelease(output);
-      this.resetDirection(output);
       return input.keyStatus.RELEASE;
     }
 
     if (input.checkButton("Left") == input.keyStatus.RELEASE) {
       //左方向を離した時
       this.onButtonRelease(output);
-      this.resetDirection(output);
       return input.keyStatus.RELEASE;
     }
 
     if (input.checkButton("Right") == input.keyStatus.RELEASE) {
       //右方向を離した時
       this.onButtonRelease(output);
-      this.resetDirection(output);
       return input.keyStatus.RELEASE;
     }
 
