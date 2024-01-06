@@ -26,7 +26,6 @@ window.onload = () => {
     fishing.app.view.id = "game-screen";    
     robotArms = fishing.robotArms;
     vpadManager = new VPadInpuManager(robotArms);
-    input = vpadManager.inputLeft;
 
     fishing.onload = () => {
         fishing.replaceScene(new MainScene(vpadManager));
@@ -37,12 +36,12 @@ window.onload = () => {
 
 }
 
-
-
 let bullet;
-//
-//メインシーン
-//
+
+/**
+ * @classdesc メインシーンクラス
+ * @extends {Container}
+ */
 class MainScene extends Container {
   #Prop = {
 
@@ -78,14 +77,22 @@ class MainScene extends Container {
   #_leftRight;
   #_upDownControl;
   #_leftRightControl;
-  
-  constructor(vPadManager){
+  #_hardwareModel;
+  #_leftInputManager;
+  #_rightInputManager;
+
+  /**
+   * コンストラクタ
+   * @param {VPadInputManager} vpadInputManager バーチャルバッドの入力管理クラスを指定します。
+   * @param {HardwareModel} hardwareModel 　ハードウェアモデルを指定します。
+   */
+  constructor(vpadInputManager){
     super();
     this.#_upDown = 0;
     this.#_leftRight = 0;
-    this.inputManager = vPadManager;
-    this.#_upDownControl = this.inputManager.inputLeft.padControlModel.upDown;
-    this.#_leftRightControl = this.inputManager.inputLeft.padControlModel.leftRight;
+    this.inputManager = vpadInputManager;
+    this.#_leftInputManager = this.inputManager.inputLeft;
+    this.#_rightInputManager = this.inputManager.inputRight;
 
     bullet = new Graphics();
     this.addChild(bullet);
@@ -96,28 +103,32 @@ class MainScene extends Container {
 
   update(delta){
     super.update(delta);
-    const controller = new RobotArmsController(this.#_upDownControl);
-    this.onButtonRelease = () => {controller.drive(this.#Prop.leftKeyCount);}
-  
+
+    // 方向キーのボタンチェック
+    this.updateDirectionCheck();
+
+    // 左パッドのボタンチェック
+    this.onButtonRelease = (output) => {
+        console.log("name=" + output.name + ", updown=" + output.upDown + ", leftRight=" + output.leftRight);
+        this.resetDirection(output);
+    }
+
+    const resultLeft = this.checkButton(this.inputManager.inputLeft, this.#Prop.leftKeyCount);
+
+    // 右パッドのボタンチェック
+    this.onButtonRelease = (output) => {
+      console.log("name=" + output.name + ", updown=" + output.upDown + ", leftRight=" + output.leftRight);
+      this.resetDirection(output);
+    }
+    const resuktRight = this.checkButton(this.inputManager.inputRight, this.#Prop.rightKeyCount);
+
+    this.onButtonRelease = () => { }
+  }
+
+  updateDirectionCheck() {
     const oblique = 1 / Math.sqrt(2);//ななめ移動の値
     this.directionCheck(this.inputManager.inputLeft, this.#Prop.leftKeyCount);
     this.directionCheck(this.inputManager.inputRight, this.#Prop.rightKeyCount);
-
-    // 右パッドのボタンチェック
-    this.onButtonRelease = () => {
-      const keyProp = this.#Prop.leftKeyCount;
-      controller.drive(keyProp);
-      this.resetDirection(keyProp);
-    }
-    const resultLeft = this.checkButton(this.inputManager.inputLeft, this.#Prop.leftKeyCount);
-    // 左パッドのボタンチェック
-    this.onButtonRelease = () => {
-      const keyProp = this.#Prop.rightKeyCount;
-      controller.drive(keyProp);
-      this.resetDirection(keyProp);
-    }
-    const resuktRight = this.checkButton(this.inputManager.inputRight, this.#Prop.rightKeyCount);
-    this.onButtonRelease = () => { }
   }
 
   directionCheck(input, output)

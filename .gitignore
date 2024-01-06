@@ -398,3 +398,4 @@ FodyWeavers.xsd
 *.sln.iml
 sample
 test
+out

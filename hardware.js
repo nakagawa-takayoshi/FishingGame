@@ -1,18 +1,26 @@
 /**
  * @file hardware.js
- * @brief ハードウェア関連の実装ファイル
+ * ハードウェア関連の実装ファイル
  */
 
 //------------------------------------------
 /**
- * @brief ハードウェアモデルクラス
+ * @classdesc ハードウェアモデルクラス
  */
 class HardwareModel {
 
+    driver = null;
+
+    /**
+     * @brief コンストラクタ
+     */
     constructor() {
-        this.obniz = new Obniz("6453-5471", { access_token:"j6S9JqzEUQwLg5Q6WpVgDDabnHkwx4_pNTe3L2Fw2ZGSAAg5qqFG10_ugfd7geHN" })
+        // this.obniz = new Obniz("6453-5471", { access_token:"j6S9JqzEUQwLg5Q6WpVgDDabnHkwx4_pNTe3L2Fw2ZGSAAg5qqFG10_ugfd7geHN" })
     }
 
+    /**
+     * 接続時の処理
+     */
     onconnect = () => {
         this.obniz.onconnect = async function() {
             document.getElementById("t1").innerHTML = "";
@@ -21,62 +29,144 @@ class HardwareModel {
             this.driver = driver;
           }
    }
-    
+
+   /**
+    * 
+    * @param {AbstractArmModel} armModel 
+    * @param {number} pulseCounts 
+    * @returns 
+    */
+   drive(armModel, pulseCounts) {
+       const driver = this.driver;
+       if (driver == null) {
+              return;
+       }
+
+       const number = armModel.number;
+       driver.pulse(number, pulseCounts);
+   }
+
 }
 
-//------------------------------------------
+
 /**
- * @brief モーターのモデルクラス
+ * @classdesc ハードウェアコントローラークラス
+ */
+class HardwareController {
+
+    #_hardwareModel = null;
+    #_padControlModel = null;
+  
+    /**
+     * コンストラクタ
+     * @param {HardwareModel} hardwareModel ハードウェアモデルのインスタンスを指定します。
+     * @param {PadControllerModel} padControlModel パッドコントローラーモデルのインスタンスを指定します。
+     */
+    constructor(padControlModel, hardwareModel) {
+        this.#_hardwareModel = hardwareModel;
+        this.#_padControlModel = padControlModel;
+    }
+
+    update() {
+        const hardwareModel = this.#_hardwareModel;
+        const padControlModel = this.#_padControlModel;
+
+        const padUpDownArm = padControlModel.padUpDownArm;
+        padUpDownArm.update(padUpDownArm.pulseCounts);
+
+        hardwareModel.drive(padUpDownArm.model.pulseCounts);
+        hardwareModel.drive(rightMotor);
+    }
+}
+
+
+/**
+ * @classdesc モーターのモデルクラス
  */
 class Motor {
 
+    model = null;
+    number = 0;
+
     /**
-     * @brief コンストラクタ
+     * コンストラクタ
      * @param {AbstractArm} armModel 
      */
-    constructor(armModel)
-    {
-     this.oprationPulse = 0;
-      this.model = armModel;
-      this._pulse = model.pulse;
+    constructor(armModel) {
+        this.oprationPulse = 0;
+        this.model = armModel;
+        this.number = armModel.number;
     }
 
-
-    get pluse()
-    {
+    /**
+     * パルス数を取得します。
+     * @returns {number} パルス数を返却します。
+     */
+    get pluse() {
         return this.operationPulse;
     }
 
-    set pluse(value)
-    {
-        operationPulse = value;
+    /**
+     *  パルス数を設定します。
+     * @param {number} value
+     */
+    set pluse(value) {
+        this.operationPulse = value;
     }
+
+    /**
+     * 更新したパルス数を取得します。 
+     * @returns {number} 更新したパルス数を返却します。
+     */
+    get updatedPulseCounts() {
+        return this.model.pulseCounts;
+    }
+
+    /**
+     * パルス数を更新します。
+     */
+    update() {
+        this.model.update(this.operationPulse);
+    }
+
 }
 
 //------------------------------------------
 /**
- * @brief パッド制御のモデルクラス
+ * @classdesc パッド制御のモデルクラス
  */
 class PadControllerModel
 {
-    constructor(upDownModel, leftRightModel)
+    /**
+     * コンストラクタ
+     * @param {Motor} padUpDownArm 
+     * @param {Motor} padLeftRightArm 
+     */
+    constructor(padUpDownArm, padLeftRightArm)
     {
-        this.upDown = upDownModel;
-        this.leftRight = leftRightModel;
+        this.padUpDownArm = padUpDownArm;
+        this.padLeftRightArm = padLeftRightArm;
     }
 }
 
 /**
- * @brief ロボットアームのモデルクラス
+ * @classdesc ロボットアームのモデルクラス
  */
 class RobotArms
 {
-    constructor()
-    {
-        this.arm2 = new Motor(new IArm(new Arm2()));
-        this.arm3 = new Motor(new IArm(new Arm3()));
-        this.arm4 = new Motor();
-        this.arm5 = new Motor();
+    leftPadControlModel;
+    rightPadControlModel;
+
+    /**
+     * コンストラクタ
+     * @param {HardwareModel} hardwareModel
+     */
+    constructor(hardwareModel) {
+        this.hardwareModel = hardwareModel;
+        this.arm2 = new Motor(new Arm2());
+        this.arm3 = new Motor(new Arm3());
+        this.arm4 = new Motor(new Arm4());
+        this.arm5 = new Motor(new Arm5());
 
         this.leftPadControlModel = new PadControllerModel(this.arm2, this.arm3);
         this.rightPadControlModel = new PadControllerModel(this.arm4, this.arm5);
@@ -84,29 +174,13 @@ class RobotArms
 }
 
 /**
- * @brief ロボットアームのインターフェース
+ * @classdesc ロボットアームの抽象モデルクラス
+ * @implements IArmModel
  */
-class IArm {
+class AbstractArm  {
 
-    /**
-     * @brief コンストラクタ
-     * @param {IArm} armModel 
-     */
-    constructor(armModel) {
-        this.armModel = armModle;
-    }
-
-    update(pulseCounts) {
-        const arm = this.armModel;
-        arm.update(pulseCounts);
-    }
-}
-
-/**
- * @brief ロボットアームの抽象モデルクラス
- */
-class AbstractArm extends IArm {
-
+    maxPulse = 0;
+    minPulse = 0;
     /**
      * @brief コンストラクタ
      * @param {number} maxPulse 
@@ -115,6 +189,7 @@ class AbstractArm extends IArm {
      */
     constructor(maxPulse, minPulse, initializePulse)
     {
+        this.maxPulse = 0;
         this.maxPulse = maxPulse;
         this.minPulse = minPulse;
         this.pulse = initializePulse;
@@ -122,8 +197,7 @@ class AbstractArm extends IArm {
 
     /**
      * @brief パルス数を更新する。
-     * @param {*} pulseCounts 
-     * @returns 
+     * @param {number} pulseCounts 
      */
     update(pulseCounts) {
         this.pulse += pulseCounts;
@@ -142,7 +216,7 @@ class AbstractArm extends IArm {
 }
 
 /**
- * @brief アーム２のモデルクラス
+ * @classdesc アーム２のモデルクラス
  */
 class Arm2 extends AbstractArm {
 
@@ -150,94 +224,90 @@ class Arm2 extends AbstractArm {
      * @brief コンストラクタ
      */
     constructor() {
-        super(2500, 400, 1400)
+        super(2500, 400, 1400);
         this.pulse = 1400;
+        this.armNumber = 2;
     }
 
 }
 
 /**
- * @brief アーム３のモデルクラス
+ * @classdesc アーム３のモデルクラス
+ * @extends AbstractArm
+ * @implements IArmModel
  */
 class Arm3 extends AbstractArm {
 
     /**
-     * @brief コンストラクタ
+     * コンストラクタ
      */
     constructor() {
         super(2500, 400, 1400)
         this.pulse = 1050;
+        this.armNumber = 3;
     }
 }
 
 /**
- * @brief ロボットアーム制御クラス
+ * @classdesc アーム４のモデルクラス
+ */
+class Arm4 extends AbstractArm {
+    
+    /**
+    * コンストラクタ
+    */
+    constructor() {
+        super(2500, 400, 1400)
+        this.pulse = 1400;
+        this.armNumber = 4;
+    }
+}
+
+/**
+ * @classdesc アーム５のモデルクラス
+ */
+class Arm5 extends AbstractArm {
+
+    /**
+    * コンストラクタ
+    */
+    constructor() {
+        super(2500, 400, 1400)
+        this.pulse = 1400;
+        this.armNumber = 5;
+    }
+}
+
+/**
+ * @classdesc ロボットアーム制御クラス
  */
 class RobotArmsController
 {
     #_hardware;
+    #_padControlModel;
 
     /**
      * @brief コンストラクタ
      * @param {HardwareModel} hardwere ハードウェアモデルを指定します。
+     * @param {PadControllerModel} padControlModel パッド制御モデルを指定します。
      */
-    constructor(hardwere)
+    constructor(hardwere, padControlModel)
     {
         this.#_hardware = hardwere;
+        this.#_padControlModel = padControlModel;
     }
 
     /**
      * @brief モーターを駆動する。
-     * @param {number} arm アーム番号を指定します。
+     * @param {number} armModel アームモデルのインスタンスを指定します。
      * @param {numer} pulseCounts　パルス数を指定します。
      */
-    drive(arm, pulseCounts) {
+    drive(armModel, pulseCounts) {
         const hardware = this.#_hardware;
+        const padControlModel = this.#_padControlModel;
         console.log("name=" + pulseCounts.name + ", updown=" + pulseCounts.upDown + ", leftRight=" + pulseCounts.leftRight);
-        hardware.driver.pulse(arm, pulseCounts);
+        hardware.driver.pulse(armModel, pulseCounts);
     }
 
-    /**
-     * @brief アーム２を駆動する
-     * @param {number} pluseCounts 
-     */
-    async arm2drive(pulseCounts) {
-        const ARM = 2;
-        const arm = hardware.arm2;
-        const drivePluse = arm.model.update(pluseCounts);
-        this.drive(ARM, drivePluse);
-    }
-
-    /**
-     * @brief アーム３を駆動する
-     * @param {number} pluseCounts 
-     */
-    async arm3drive(pluseCounts) {
-        const ARM = 3;
-        const hardware = this.#_hardware;
-        const arm = hardware.arm3;
-        const drivePluse = arm.model.update(pluseCounts);
-        this.drive(ARM, drivePluse);
-    }
-
-    /**
-     * @brief アーム４を駆動する
-     * @param {number} pluseCounts 
-     */
-    async arm4drive(pluseCounts) {
-        const ARM = 4;
-        const hardware = this.#_hardware;
-        this.drive(ARM, pulseCounts);
-    }
-
-    /**
-     * @brief アーム５を駆動する
-     * @param {number} pluseCounts 
-     */
-    async arm5drive(pluseCounts) {
-        const ARM = 5;
-        const hardware = this.#_hardware;
-        this.drive(ARM, pulseCounts);
-    }
 }
 

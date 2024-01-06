@@ -1,7 +1,11 @@
 class FishingGame
 {
+    currentScene = undefined;
+    hardwareModel = undefined;
+
     constructor(width, height, color) 
     {
+      
         const pixiApp = new PIXI.Application({
             width: width, 
             height: height,                       
@@ -16,16 +20,25 @@ class FishingGame
             e.preventDefault();
         }, false);
         
+        this.hardwareModel = new HardwareModel();
+        
+
         //更新処理
         pixiApp.ticker.add((delta) => {
             if(this.currentScene){
-            this.currentScene.update(delta);
+              this.currentScene.update(delta);
             }
-
         });
-        
+
+      //   pixiApp.ticker.add((delta) => {
+      //     if(this.hardwareModel){
+      //       this.hardwareModel.update(delta);
+      //     }
+      // });
+
+                
         // ロボットアームのインスタンスを作成
-        this.robotArms = new RobotArms();
+        this.robotArms = new RobotArms(this.hardwareModel);
 
         //使いやす場所に
         this.app = pixiApp;
@@ -91,7 +104,7 @@ class FishingGame
     //シーンの置き換え処理
     replaceScene(newScene){
         if(this.currentScene){//現在のシーンを廃棄
-        this.currentScene.destroy();
+          this.currentScene.destroy();
         }
         if(this.waitingScene){//waitingSceneもあれば廃棄
         this.waitingScene.destroy();
@@ -106,12 +119,15 @@ class FishingGame
 
 //------------------------------------------
 /**
- * @brief バーチャルパッドベース
+ * バーチャルパッドベース
  */
 class VPadBase {
   
   pad = undefined;
 
+  /**
+   * コンストラクタ
+   */
   constructor() {
     this.resizePadBase();
     window.addEventListener('resize', ()=>{this.resizePadBase();});
@@ -467,9 +483,9 @@ class Container extends PIXI.Container {
     }
 }
 
-//
-// バーチャルパッドマネージャクラス
-//
+/**
+ * バーチャルパッドの入力マネージャクラス
+ */
 class VPadInpuManager {
   constructor(robotArms) {
     const pad = new VPadBase();
@@ -478,16 +494,20 @@ class VPadInpuManager {
   }
 }
 
-//
-// 入力マネージャー
-//
+/**
+ * 入力マネージャクラス
+ */
 class InputManager {
   #_descriptor = "";
 
+  /**
+   * 
+   * @param {VPadBase} pad 
+   * @param {string} descriptor 
+   * @param {PadControllerModel} padControlModel 
+   */
   constructor(pad, descriptor, padControlModel) {
     this.#_descriptor = descriptor;
-    this.UpDownControl = 0;
-    this.LeftRightControl = 0
     this.padControlModel = padControlModel;
 
     //方向入力チェック用定数
@@ -541,8 +561,11 @@ class InputManager {
     else {
       document.getElementById("t1").innerHTML = "<div style=\"color: white;\">スマホでアクセスして下さい。</div>";
     }
+}
 
-  }
+get name() {
+  return this.#_descriptor;
+}
 
 //方向キー入力チェック
 checkDirection() {
@@ -564,20 +587,36 @@ checkDirection() {
 
 //ボタンの入力状態をチェックして返す
 checkButton(key) {
-  if(this.input.keys[key]){
-    if(this.input.keysPrev[key] == false){
-      this.input.keysPrev[key] = true;
-      return this.keyStatus.DOWN;//押されたとき
+    if(this.input.keys[key]){
+      if(this.input.keysPrev[key] == false){
+        this.input.keysPrev[key] = true;
+        return this.keyStatus.DOWN;//押されたとき
+      }
+      return this.keyStatus.HOLD;//押しっぱなし
+    }else{
+      if(this.input.keysPrev[key] == true){
+        this.input.keysPrev[key] = false;
+        return this.keyStatus.RELEASE;//ボタンを離した時
+      }
+      return this.keyStatus.UNDOWN;//押されていない
     }
-    return this.keyStatus.HOLD;//押しっぱなし
-  }else{
-    if(this.input.keysPrev[key] == true){
-      this.input.keysPrev[key] = false;
-      return this.keyStatus.RELEASE;//ボタンを離した時
-    }
-    return this.keyStatus.UNDOWN;//押されていない
   }
-}
+
+  /**
+   * 左パッドの入力管理オブジェクトか評価します。
+   * @returns {boolean} 左パッドの場合はtrueを返却する。
+   */
+  isLeft() {
+    return (this.#_descriptor === "left");
+  }
+
+  /**
+   * 右パッドの入力管理オブジェクトか評価します。
+   * @returns {boolean} 右パッドの場合はtrueを返却する。
+   */
+  isRight() {
+    return (this.#_descriptor === "right");
+  }
 }
 
 
