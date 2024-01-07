@@ -9,10 +9,14 @@
  */
 class HardwareModel {
 
+    /**
+     * @type {PCA9685}
+     * モータードライバーのモデル
+     */
     driver = null;
 
     /**
-     * @brief コンストラクタ
+     * コンストラクタ
      */
     constructor() {
         // this.obniz = new Obniz("6453-5471", { access_token:"j6S9JqzEUQwLg5Q6WpVgDDabnHkwx4_pNTe3L2Fw2ZGSAAg5qqFG10_ugfd7geHN" })
@@ -31,10 +35,9 @@ class HardwareModel {
    }
 
    /**
-    * 
-    * @param {AbstractArmModel} armModel 
-    * @param {number} pulseCounts 
-    * @returns 
+    * ハードウェアをドライブ‘します。
+    * @param {AbstractArmModel} armModel アームモデルのインスタンスを指定します。
+    * @param {number} pulseCounts パルス数を指定します。
     */
    drive(armModel, pulseCounts) {
        const driver = this.driver;
@@ -50,32 +53,235 @@ class HardwareModel {
 
 
 /**
- * @classdesc ハードウェアコントローラークラス
+ * @classdesc ロボットアーム制御クラス
  */
-class HardwareController {
+class RobotArmsController {
 
-    #_hardwareModel = null;
     #_padControlModel = null;
-  
+    #_driver = null;
     /**
      * コンストラクタ
-     * @param {HardwareModel} hardwareModel ハードウェアモデルのインスタンスを指定します。
      * @param {PadControllerModel} padControlModel パッドコントローラーモデルのインスタンスを指定します。
+     * @param {HardwareModel} hardwareModel ハードウェアモデルのインスタンスを指定します。
      */
     constructor(padControlModel, hardwareModel) {
-        this.#_hardwareModel = hardwareModel;
+
+        // this.#_driver = hardwareModel.driver;
         this.#_padControlModel = padControlModel;
     }
 
-    update() {
-        const hardwareModel = this.#_hardwareModel;
+    update(keyProp) {
         const padControlModel = this.#_padControlModel;
+        const driver = this.#_driver;
 
-        const padUpDownArm = padControlModel.padUpDownArm;
-        padUpDownArm.update(padUpDownArm.pulseCounts);
+        const padUpDownHardwareModel = padControlModel.padUpDownHardwareModel;
+        padUpDownHardwareModel.pulse = keyProp.upDown;
+        this.drive(padUpDownHardwareModel);
 
-        hardwareModel.drive(padUpDownArm.model.pulseCounts);
-        hardwareModel.drive(rightMotor);
+        const padLeftRightHardwareModel = padControlModel.padLeftRightHardwareModel;
+        padLeftRightHardwareModel.pulse = keyProp.leftRight;
+        this.drive(padLeftRightHardwareModel);
+    }
+
+    /**
+     *  ハードウェアをドライブします。
+     * @param {Motor} hardwareModel 
+     */
+    drive(hardwareModel) {
+
+        // Motor.update();
+        hardwareModel.update();
+
+        const armNumber = hardwareModel.number;
+        const pulseCounts = hardwareModel.updatedPulseCounts;
+
+        console.log("armNumber=" + armNumber + ", pulseCounts=" + pulseCounts);
+        this.asyncFunc();
+        // driver.pulse(armNumber, pulseCounts);
+    }
+
+    async asyncFunc() {
+        console.log('calling');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+}
+
+
+/**
+ * @classdesc ハードウェアコントローラークラス
+ */
+class HardwareController {
+    #Prop = {
+
+        leftKeys: {
+          Up : false,
+          Down: false,
+          Left: false,
+          Right : false,
+        },
+    
+        rightKeys: {
+          Up : false,
+          Down: false,
+          Left: false,
+          Right : false,
+        },
+    
+        leftKeyCount: {
+          name : "left",
+          upDown : 0,
+          leftRight: 0,
+        },
+    
+        rightKeyCount: {
+          name: "right",
+          upDown : 0,
+          leftRight: 0,
+        },
+    
+      }
+        
+    #_hardwareModel = null;
+    #_leftPadInputManager = null;
+    #_rightPadInputManager = null;
+
+    /**
+     * コンストラクタ
+     * @param {VpadInputManager} vpadInputManager
+     * @param {HardwareModel} hardwareModel
+     */
+    constructor(vpadInputManager, hardwareModel) {
+        this.#_leftPadInputManager = vpadInputManager.inputLeft;
+        this.#_rightPadInputManager = vpadInputManager.inputRight;
+        this.#_hardwareModel = hardwareModel;
+    }
+
+    /**
+     * 更新処理
+     */
+    update() {
+        updateLeftPad();
+        updateRightPad();
+    }
+
+    updateLeftPad() {
+        const hardwareModel = this.#_hardwareModel;
+        const inputManager = this.#_leftPadInputManager;
+        const leftPadContrioller = new PadInputController(inputManager)
+        leftPadContrioller.update(this.#Prop.leftKeyCount);
+    }
+
+    updateRightPad() {
+        const hardwareModel = this.#_hardwareModel;
+        const inputManager = this.#_rightPadInputManager;
+        const rightPadContrioller = new PadInputController(inputManager)
+        rightPadContrioller.update(this.#Prop.rightKeyCount);
+    }
+
+}
+
+class PadInputController {
+
+    #_inputManager = null;
+
+    /**
+     * コンストラクタ
+     * @param {InputManager} inputManager
+     */
+    constructor(inputManager) {
+        this.#_inputManager = inputManager;
+    }
+
+    update(output) {
+        this.directionCheck(output);
+        this.buttonCheck(output);
+    }
+
+    directionCheck(output)
+    {
+        const inputManager = this.#_inputManager;
+        const oblique = 1 / Math.sqrt(2);//ななめ移動の値
+        const dir = inputManager.checkDirection();
+        switch(inputManager.checkDirection()) {
+            case inputManager.keyDirections.UP:
+            output.upDown++;
+            break;
+            case inputManager.keyDirections.UP_RIGHT:
+            output.upDown += oblique;
+            output.leftRight += oblique;
+            break;
+            case inputManager.keyDirections.RIGHT:
+            output.leftRight++;     
+            break;
+            case inputManager.keyDirections.DOWN_RIGHT:
+            output.upDown -= oblique;
+            output.leftRight += oblique;     
+            break;
+            case inputManager.keyDirections.DOWN:
+            output.upDown--;
+            break;
+            case inputManager.keyDirections.DOWN_LEFT:
+            output.upDown -= oblique;
+            output.leftRight -= oblique;     
+            break;
+            case inputManager.keyDirections.LEFT:
+            output.leftRight--;     
+            break;
+            case inputManager.keyDirections.UP_LEFT:
+            output.upDown += oblique;
+            output.leftRight -= oblique;     
+            break;
+            default:
+            break;
+        }
+    
+        return dir;
+    }
+  
+    checkButton(output) {
+        const inputManager = this.#_inputManager;
+        if (inputManager.checkButton("Up") == inputManager.keyStatus.RELEASE) {
+          //上方向を離した時
+          this.onButtonRelease(output);
+          return inputManager.keyStatus.RELEASE;
+        }
+    
+        if (inputManager.checkButton("Down") == inputManager.keyStatus.RELEASE) {
+          //下方向を離した時
+          this.onButtonRelease(output);
+          return inputManager.keyStatus.RELEASE;
+        }
+    
+        if (inputManager.checkButton("Left") == inputManager.keyStatus.RELEASE) {
+          //左方向を離した時
+          this.onButtonRelease(output);
+          return inputManager.keyStatus.RELEASE;
+        }
+    
+        if (inputManager.checkButton("Right") == inputManager.keyStatus.RELEASE) {
+          //右方向を離した時
+          this.onButtonRelease(output);
+          return inputManager.keyStatus.RELEASE;
+        }
+    
+        return inputManager.keyStatus.UNDOWN;
+    }
+
+    onButtonRelease(output) {
+        const inputManager = this.#_inputManager;
+        console.log("name=" + output.name + ", updown=" + output.upDown + ", leftRight=" + output.leftRight);
+        const padControlModel = inputManager.padControlModel;
+        const robotArmsController = new RobotArmsController(padControlModel, this.hardwareModel);
+        robotArmsController.update(output);
+        this.resetDirection(output);
+    }
+
+    //
+    // 方向リセット
+    //
+    resetDirection(output) {
+        output.upDown = 0;
+        output.leftRight = 0;
     }
 }
 
@@ -85,8 +291,9 @@ class HardwareController {
  */
 class Motor {
 
-    model = null;
+    armModel = null;
     number = 0;
+    operationPulse = 0;
 
     /**
      * コンストラクタ
@@ -94,15 +301,15 @@ class Motor {
      */
     constructor(armModel) {
         this.oprationPulse = 0;
-        this.model = armModel;
-        this.number = armModel.number;
+        this.armModel = armModel;
+        this.number = armModel.armNumber;
     }
 
     /**
      * パルス数を取得します。
      * @returns {number} パルス数を返却します。
      */
-    get pluse() {
+    get pulse() {
         return this.operationPulse;
     }
 
@@ -110,7 +317,7 @@ class Motor {
      *  パルス数を設定します。
      * @param {number} value
      */
-    set pluse(value) {
+    set pulse(value) {
         this.operationPulse = value;
     }
 
@@ -119,14 +326,14 @@ class Motor {
      * @returns {number} 更新したパルス数を返却します。
      */
     get updatedPulseCounts() {
-        return this.model.pulseCounts;
+        return this.armModel.pulse;
     }
 
     /**
      * パルス数を更新します。
      */
     update() {
-        this.model.update(this.operationPulse);
+        this.armModel.update(this.operationPulse);
     }
 
 }
@@ -144,8 +351,8 @@ class PadControllerModel
      */
     constructor(padUpDownArm, padLeftRightArm)
     {
-        this.padUpDownArm = padUpDownArm;
-        this.padLeftRightArm = padLeftRightArm;
+        this.padUpDownHardwareModel = padUpDownArm;
+        this.padLeftRightHardwareModel = padLeftRightArm;
     }
 }
 
@@ -203,12 +410,12 @@ class AbstractArm  {
         this.pulse += pulseCounts;
         if (this.pulse == 0) return;
 
-        if (this.MaxPulse < this.pulse) {
-            this.pulse = this.MaxPulse;
+        if (this.maxPulse < this.pulse) {
+            this.pulse = this.maxPulse;
         }
-        else if (this.MinPulse > this.pulse)
+        else if (this.minPulse > this.pulse)
         {
-            this.pulse = this.MinPulse;
+            this.pulse = this.minPulse;
         }
 
         return this.pulse;
@@ -276,38 +483,5 @@ class Arm5 extends AbstractArm {
         this.pulse = 1400;
         this.armNumber = 5;
     }
-}
-
-/**
- * @classdesc ロボットアーム制御クラス
- */
-class RobotArmsController
-{
-    #_hardware;
-    #_padControlModel;
-
-    /**
-     * @brief コンストラクタ
-     * @param {HardwareModel} hardwere ハードウェアモデルを指定します。
-     * @param {PadControllerModel} padControlModel パッド制御モデルを指定します。
-     */
-    constructor(hardwere, padControlModel)
-    {
-        this.#_hardware = hardwere;
-        this.#_padControlModel = padControlModel;
-    }
-
-    /**
-     * @brief モーターを駆動する。
-     * @param {number} armModel アームモデルのインスタンスを指定します。
-     * @param {numer} pulseCounts　パルス数を指定します。
-     */
-    drive(armModel, pulseCounts) {
-        const hardware = this.#_hardware;
-        const padControlModel = this.#_padControlModel;
-        console.log("name=" + pulseCounts.name + ", updown=" + pulseCounts.upDown + ", leftRight=" + pulseCounts.leftRight);
-        hardware.driver.pulse(armModel, pulseCounts);
-    }
-
 }
 

@@ -1,8 +1,17 @@
+/**
+ * フィッシングゲームのメイン処理
+ */
 class FishingGame
 {
     currentScene = undefined;
     hardwareModel = undefined;
 
+    /**
+     * コンストラクタ
+     * @param {number} width ゲーム画面の幅を指定します。
+     * @param {number} height ゲート画面の高さを指定します。
+     * @param {number} color ゲーム画面の背景色を指定します。
+     */
     constructor(width, height, color) 
     {
       
@@ -13,7 +22,6 @@ class FishingGame
             resolution: 1,
             autoDensity: true
         })
-
         document.body.appendChild(pixiApp.view);
         //右クリックで出るメニューを非表示に
         pixiApp.view.addEventListener("contextmenu", function(e){
@@ -70,7 +78,9 @@ class FishingGame
 
       }
 
-  //アセット読み込み
+    /**
+     * アセット読み込み
+     */
     preload(){
         this.onload();//読み込み完了でonload()実行
     }
@@ -78,7 +88,9 @@ class FishingGame
   //アセット読み込み後に実行される(今は空っぽ))
     onload = () => {};
 
-  //canvas のりサイズ処理を行う
+    /**
+     * canvasのリサイズ処理
+     */
     resizeCanvas(){
         const renderer = this.app.renderer;
     
@@ -101,7 +113,10 @@ class FishingGame
         this.app.view.style.height = `${canvasHeight}px`;
     }
 
-    //シーンの置き換え処理
+    /**
+     *  シーンの置き換え
+     * @param {MainScene} newScene 
+     */
     replaceScene(newScene){
         if(this.currentScene){//現在のシーンを廃棄
           this.currentScene.destroy();
@@ -117,7 +132,6 @@ class FishingGame
 }
 
 
-//------------------------------------------
 /**
  * バーチャルパッドベース
  */
@@ -133,6 +147,9 @@ class VPadBase {
     window.addEventListener('resize', ()=>{this.resizePadBase();});
   }
 
+  /**
+   * パッドのリサイズ
+   */
   resizePadBase() {
     let styleDisplay = "block";//ゲームパッド対策
     if(this.pad != undefined){
@@ -184,13 +201,19 @@ class VPadBase {
 }
 
 
-/******************************************************
- * バーチャルパッド
- ******************************************************/
+/**
+ * バーチャルパッドのクラス
+ */
 class Vpad {
     #_descriptor = "";
     #_vpadBase = null;
 
+    /**
+     *  コンストラクタ
+     * @param {VPadBased} vpadBase バーチャルバッドのベースのインスタンスを指定します。
+     * @param {InputManager} input 入力管理クラスのインスタンスを指定します。
+     * @param {string} descriptor 識別子を指定します。
+     */
     constructor(vpadBase, input, descriptor){
       this.#_descriptor = descriptor;
       this.#_vpadBase = vpadBase;
@@ -199,7 +222,11 @@ class Vpad {
       // リサイズイベントの登録
       window.addEventListener('resize', ()=>{this.resizePad();});
     }
-    //画面サイズが変わるたびにvpadも作り変える
+
+    /**
+     * パッドのリサイズ
+     * @note 画面サイズが変わるたびにvpadも作り変える
+     */
     resizePad(){
       const vpad = this.#_vpadBase;
       const pad = vpad.pad;
@@ -215,10 +242,21 @@ class Vpad {
             //方向キー作成
       this.leftPad = new DirKey(pad, this.input, vpad.height, direction, this.#_descriptor);      
     }
-  }
+}
   
-  //方向キークラス
-  class DirKey {
+  /**
+   * 方向キークラス
+   */
+class DirKey {
+
+    /**
+     *  コンストラクタ
+     * @param {*} parent 
+     * @param {*} input 
+     * @param {*} padHeight 
+     * @param {*} direction 
+     * @param {*} alignment 
+     */
      constructor(parent, input, padHeight, direction, alignment) {
       this.isTouching = false;
       this.originX = 0;
@@ -350,26 +388,55 @@ class Vpad {
  * Graphicsにupdate機能追加
  * いくつかの図形をすぐかけるようにした
  ***********************************************/
+/**
+ * Graphicsにupdate機能追加
+ * いくつかの図形をすぐかけるようにした
+ * @extends PIXI.Graphics
+ */
 class Graphics extends PIXI.Graphics {
+
+    /**
+     * コンストラクタ
+     */
     constructor(){
       super();
       this.isUpdateObject = true;
       this.isDestroyed = false;
       this.age = 0; 
     }
+
+    /**
+     * 破棄
+     */
     destroy() {
       super.destroy();
       this.isDestroyed = true;
     }
+
+    /**
+     *  更新処理
+     * @param {*} delta 
+     */
     update(delta){
       this.age++;
     }
+
+    /**
+     * 線を引く
+     * @param {number} x 開始点のＸ座標を指定します。
+     * @param {number} y 開始点のＹ座標を指定します。
+     * @param {number} x2 終了点のＸ座標を指定します。
+     * @param {number} y2 終了点のＹ座標を指定します。
+     * @param {number} thickness 線の太さを指定します。
+     * @param {number} color 線の色を指定します。
+     */
     line(x, y, x2, y2, thickness, color){
       this.lineStyle(thickness, color);
       this.moveTo(x, y);
       this.lineTo(x2, y2);
       this.lineStyle();//解除(他のにも影響がでるため) 
     }
+
     rectFill(x, y, w, h, color){
       this.beginFill(color);
       this.drawRect(x, y, w, h);
@@ -486,11 +553,16 @@ class Container extends PIXI.Container {
 /**
  * バーチャルパッドの入力マネージャクラス
  */
-class VPadInpuManager {
-  constructor(robotArms) {
+class VPadInputManager {
+
+  /**
+   * コンストラクタ
+   * @param {VPadInputManager} inputManager  バーチャルパッドの入力マネージャのインスタンスを指定します。
+   */
+  constructor(inputManager) {
     const pad = new VPadBase();
-    this.inputLeft = new InputManager(pad, "left", robotArms.leftPadControlModel);
-    this.inputRight = new InputManager(pad, "right", robotArms.rightPadControlModel);
+    this.inputLeft = new InputManager(pad, "left", inputManager.leftPadControlModel);
+    this.inputRight = new InputManager(pad, "right", inputManager.rightPadControlModel);
   }
 }
 
@@ -501,7 +573,7 @@ class InputManager {
   #_descriptor = "";
 
   /**
-   * 
+   * コンストラクタ
    * @param {VPadBase} pad 
    * @param {string} descriptor 
    * @param {PadControllerModel} padControlModel 
@@ -561,45 +633,57 @@ class InputManager {
     else {
       document.getElementById("t1").innerHTML = "<div style=\"color: white;\">スマホでアクセスして下さい。</div>";
     }
-}
+  }
 
-get name() {
-  return this.#_descriptor;
-}
+  /**
+   * 名前を取得します。
+   */
+  get name() {
+    return this.#_descriptor;
+  }
 
-//方向キー入力チェック
-checkDirection() {
-  let direction = 0;//初期化
-  if(this.input.keys.Up){
-      direction += this.keyDirections.UP;
+  /**
+   * 方向キーの状態をチェックして返します。
+   * @returns {number} 方向キーの状態を返します。
+   */
+  checkDirection() {
+    let direction = 0;//初期化
+    if(this.input.keys.Up){
+        direction += this.keyDirections.UP;
+    }
+    if(this.input.keys.Right){
+      direction += this.keyDirections.RIGHT;
+    }
+    if(this.input.keys.Down){
+      direction += this.keyDirections.DOWN;
+    }
+    if(this.input.keys.Left){
+      direction += this.keyDirections.LEFT;
+    }
+    return direction;
   }
-  if(this.input.keys.Right){
-    direction += this.keyDirections.RIGHT;
-  }
-  if(this.input.keys.Down){
-    direction += this.keyDirections.DOWN;
-  }
-  if(this.input.keys.Left){
-    direction += this.keyDirections.LEFT;
-  }
-  return direction;
-}
 
 //ボタンの入力状態をチェックして返す
-checkButton(key) {
-    if(this.input.keys[key]){
-      if(this.input.keysPrev[key] == false){
-        this.input.keysPrev[key] = true;
-        return this.keyStatus.DOWN;//押されたとき
+
+  /**
+   * ボタンの状態をチェックして返します。
+   * @param {string} key ボタンの名前を指定します。
+   * @returns {number} ボタンの状態を返します。
+   */
+  checkButton(key) {
+      if(this.input.keys[key]){
+        if(this.input.keysPrev[key] == false){
+          this.input.keysPrev[key] = true;
+          return this.keyStatus.DOWN;//押されたとき
+        }
+        return this.keyStatus.HOLD;//押しっぱなし
+      }else{
+        if(this.input.keysPrev[key] == true){
+          this.input.keysPrev[key] = false;
+          return this.keyStatus.RELEASE;//ボタンを離した時
+        }
+        return this.keyStatus.UNDOWN;//押されていない
       }
-      return this.keyStatus.HOLD;//押しっぱなし
-    }else{
-      if(this.input.keysPrev[key] == true){
-        this.input.keysPrev[key] = false;
-        return this.keyStatus.RELEASE;//ボタンを離した時
-      }
-      return this.keyStatus.UNDOWN;//押されていない
-    }
   }
 
   /**

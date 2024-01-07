@@ -1,46 +1,48 @@
-//設定用
+/**
+ * @file main.js
+ */
+
+/**
+ * 設定用データ
+ */
 const Config = {
-    //画面の解像度
+    /** 画面階層度 */
     Screen: {
       Width: 256,//幅
       Height: 256,//高さ
       BackGroundColor: 0xffffff,//背景色
     },
-    Keys: { //キーボード入力
-      Up: "w",
-      Right: "d",
-      Down: "s",
-      Left: "a",
-    },
+
   }
 
-let fishing;
-let robotArms;
-let vpadManager;
-let input;
 
-window.onload = () => {
-    fishing = new FishingGame(Config.Screen.Width, Config.Screen.Height, Config.Screen.BackGroundColor);
+window.onload = () => onloadWindow();
+
+
+/**
+ * ウィンドウのロードが完了した時に呼ばれるイベント
+ * @function
+ * @return {void}
+ */
+function onloadWindow() {
+    const game = new FishingGame(Config.Screen.Width, Config.Screen.Height, Config.Screen.BackGroundColor);
     document.getElementById("t1").innerHTML = "<div style=\"color:white\">Loading..</div>";
     //cssのidを設定
-    fishing.app.view.id = "game-screen";    
-    robotArms = fishing.robotArms;
-    vpadManager = new VPadInpuManager(robotArms);
+    game.app.view.id = "game-screen";    
+    const robotArms = game.robotArms;
+    const inputManager = new VPadInputManager(robotArms);
 
-    fishing.onload = () => {
-        fishing.replaceScene(new MainScene(vpadManager));
+    game.onload = () => {
+        game.replaceScene(new MainScene(inputManager));
     }
 
     //データのロード
-    fishing.preload();
-
+    game.preload();
 }
-
-let bullet;
 
 /**
  * @classdesc メインシーンクラス
- * @extends {Container}
+ * @extends {Container} 
  */
 class MainScene extends Container {
   #Prop = {
@@ -73,13 +75,9 @@ class MainScene extends Container {
 
   }
 
-  #_upDown;
-  #_leftRight;
-  #_upDownControl;
-  #_leftRightControl;
-  #_hardwareModel;
   #_leftInputManager;
   #_rightInputManager;
+
 
   /**
    * コンストラクタ
@@ -88,20 +86,18 @@ class MainScene extends Container {
    */
   constructor(vpadInputManager){
     super();
-    this.#_upDown = 0;
-    this.#_leftRight = 0;
     this.inputManager = vpadInputManager;
     this.#_leftInputManager = this.inputManager.inputLeft;
     this.#_rightInputManager = this.inputManager.inputRight;
-
-    bullet = new Graphics();
-    this.addChild(bullet);
-    bullet.circFill(0, 0, 4, 0xff0000);
-    bullet.y = -10;
   }
 
 
-  update(delta){
+  /**
+   * 更新処理
+   * @param {number} delta
+   * @override
+   */
+  update(delta) {
     super.update(delta);
 
     // 方向キーのボタンチェック
@@ -110,6 +106,9 @@ class MainScene extends Container {
     // 左パッドのボタンチェック
     this.onButtonRelease = (output) => {
         console.log("name=" + output.name + ", updown=" + output.upDown + ", leftRight=" + output.leftRight);
+        const padControlModel = this.#_leftInputManager.padControlModel;
+        const robotArmsController = new RobotArmsController(padControlModel, null);
+        robotArmsController.update(output);
         this.resetDirection(output);
     }
 
@@ -118,7 +117,10 @@ class MainScene extends Container {
     // 右パッドのボタンチェック
     this.onButtonRelease = (output) => {
       console.log("name=" + output.name + ", updown=" + output.upDown + ", leftRight=" + output.leftRight);
-      this.resetDirection(output);
+      const padControlModel = this.#_rightInputManager.padControlModel;
+      const robotArmsController = new RobotArmsController(padControlModel, null);
+      robotArmsController.update(output);
+    this.resetDirection(output);
     }
     const resuktRight = this.checkButton(this.inputManager.inputRight, this.#Prop.rightKeyCount);
 
