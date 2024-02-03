@@ -220,16 +220,19 @@ class VPadBase {
 class Vpad {
     #_descriptor = "";
     #_vpadBase = null;
+    #_buttonKey = false;
 
     /**
      *  コンストラクタ
      * @param {VPadBased} vpadBase バーチャルバッドのベースのインスタンスを指定します。
      * @param {InputManager} input 入力管理クラスのインスタンスを指定します。
      * @param {string} descriptor 識別子を指定します。
+     * @param {bool} buttonKey ボタンのキーを指定します。
      */
-    constructor(vpadBase, input, descriptor){
+    constructor(vpadBase, input, descriptor, buttonKey){
       this.#_descriptor = descriptor;
       this.#_vpadBase = vpadBase;
+      this.#_buttonKey = buttonKey;
       this.input = input;      //InputManagerのinput
       this.resizePad();
       // リサイズイベントの登録
@@ -252,8 +255,24 @@ class Vpad {
       else {
         direction = "vertical";
       }
-            //方向キー作成
-      this.leftPad = new DirKey(pad, this.input, vpad.height, direction, this.#_descriptor);      
+      
+      //方向キー作成
+      this.leftPad = new DirKey(pad, this.input, vpad.height, direction, this.#_descriptor);
+
+      const buttonKey = this.#_buttonKey;
+      if (!buttonKey) return;
+
+      //STARTボタン作成
+      const style = {
+        width: `${vpad.height * 0.3}px`,
+        height: `${vpad.height * 0.15}px`,
+        right: `${vpad.height * 0.75}px`,
+        top: `${vpad.height * 0.05}px`,
+        borderRadius: `${vpad.height * 0.15 * 0.5}px`
+      }
+
+      this.startKey = new ActBtn(pad, this.input, "Home", "Home", style);
+
     }
 }
   
@@ -396,11 +415,37 @@ class DirKey {
     }
   }
   
+//アクションボタンクラス
+class ActBtn {
+  constructor(parent, input, key, name, style) {
+    //HTMLのdivでボタンを作成
+    const div = document.createElement('div');
+    div.className = "button";
+    parent.appendChild(div);
+    div.style.width = style.width;
+    div.style.height = style.height;
+    div.style.right = style.right;
+    div.style.top = style.top;
+    div.style.borderRadius = style.borderRadius;
 
-/***********************************************
- * Graphicsにupdate機能追加
- * いくつかの図形をすぐかけるようにした
- ***********************************************/
+    //ボタン名を表示
+    const p = document.createElement('p');
+    p.innerHTML = name;
+    div.appendChild(p);
+
+    //タッチスタート
+    div.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      input.keys[key] = true;
+    });
+    
+    //タッチエンド
+    div.addEventListener("touchend", (e) => {
+      input.keys[key] = false;
+    });
+  }
+}
+
 /**
  * Graphicsにupdate機能追加
  * いくつかの図形をすぐかけるようにした
@@ -574,8 +619,8 @@ class VPadInputManager {
    */
   constructor(inputManager) {
     const pad = new VPadBase();
-    this.inputLeft = new InputManager(pad, "left", inputManager.leftPadControlModel);
-    this.inputRight = new InputManager(pad, "right", inputManager.rightPadControlModel);
+    this.inputLeft = new InputManager(pad, "left", inputManager.leftPadControlModel, false);
+    this.inputRight = new InputManager(pad, "right", inputManager.rightPadControlModel, true);
   }
 }
 
@@ -590,8 +635,9 @@ class InputManager {
    * @param {VPadBase} pad 
    * @param {string} descriptor 
    * @param {PadControllerModel} padControlModel 
+   * @param {bool} buttonKey
    */
-  constructor(pad, descriptor, padControlModel) {
+  constructor(pad, descriptor, padControlModel, buttonKey) {
     this.#_descriptor = descriptor;
     this.padControlModel = padControlModel;
 
@@ -624,7 +670,7 @@ class InputManager {
         Left: false,
         A: false,
         B: false,
-        Start: false
+        Home: false
       },
       //一つ前のキーの状態管理用
       keysPrev: {
@@ -634,14 +680,14 @@ class InputManager {
         Left: false,
         A: false,
         B: false,
-        Start: false
+        Home: false
       },
    };
 
     //スマホ・タブレットの時だけv-pad表示
     if (navigator.userAgent.match(/iPhone|iPad|Android/)) {
       document.getElementById("t1").innerHTML = "";
-      this.vpad = new Vpad(pad, this.input, descriptor);
+      this.vpad = new Vpad(pad, this.input, descriptor, buttonKey);
     }
     else {
       document.getElementById("t1").innerHTML = "<div style=\"color: white;\">スマホでアクセスして下さい。</div>";

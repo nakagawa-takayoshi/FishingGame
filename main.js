@@ -92,6 +92,7 @@ class MainScene extends Container {
       name: "right",
       upDown : 0,
       leftRight: 0,
+      home: false,
     },
 
   }
@@ -222,6 +223,14 @@ class MainScene extends Container {
       //右方向を離した時
       controller.onButtonRelease(output);
       return input.keyStatus.RELEASE;
+    }
+
+    if (input.checkButton("Home") == input.keyStatus.RELEASE) {
+      //ホームボタンを離した時
+        output.home = true;
+        controller.onButtonRelease(output);
+        output.home = false;
+        return input.keyStatus.RELEASE;
     }
 
     return input.keyStatus.UNDOWN;

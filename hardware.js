@@ -114,6 +114,9 @@ class RobotArmsController {
     update(keyProp) {
         const padControlModel = this.#_padControlModel;
         const driver = this.#_hardwareModel;
+        if (keyProp.home) {
+            return;
+        }
 
         const padUpDownHardwareModel = padControlModel.padUpDownHardwareModel;
         padUpDownHardwareModel.pulse = keyProp.upDown;
