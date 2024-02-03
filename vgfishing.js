@@ -13,8 +13,8 @@ class FishingGame
      * @param {number} color ゲーム画面の背景色を指定します。
      */
     constructor(width, height, color) 
-    {
-      
+    {      
+        document.getElementById("t1").innerHTML = "<div style=\"color:white\">Loading..</div>";
         const pixiApp = new PIXI.Application({
             width: width, 
             height: height,                       
@@ -28,28 +28,21 @@ class FishingGame
             e.preventDefault();
         }, false);
         
-        this.hardwareModel = new HardwareModel();
-        
-
+      
         //更新処理
         pixiApp.ticker.add((delta) => {
             if(this.currentScene){
               this.currentScene.update(delta);
             }
         });
-
-      //   pixiApp.ticker.add((delta) => {
-      //     if(this.hardwareModel){
-      //       this.hardwareModel.update(delta);
-      //     }
-      // });
-
                 
-        // ロボットアームのインスタンスを作成
-        this.robotArms = new RobotArms(this.hardwareModel);
-
         //使いやす場所に
         this.app = pixiApp;
+
+        this.hardwareModel = new HardwareModel(this);
+
+        // ロボットアームのインスタンスを作成
+        this.robotArms = new RobotArms(this.hardwareModel);
         
         // リサイズイベントの登録
         window.addEventListener('resize', () => {this.resizeCanvas();});
@@ -87,6 +80,22 @@ class FishingGame
 
   //アセット読み込み後に実行される(今は空っぽ))
     onload = () => {};
+
+    main() {
+      document.getElementById("t1").innerHTML = "<div style=\"color:white\">Loading..</div>";
+      //cssのidを設定
+      this.app.view.id = "game-screen";    
+      const robotArms = this.robotArms;
+      const inputManager = new VPadInputManager(robotArms);
+  
+      this.onload = () => {
+          const hardwareModel = this.hardwareModel;
+          this.replaceScene(new MainScene(inputManager, hardwareModel));
+      }
+  
+      //データのロード
+      this.preload();  
+    }
 
     /**
      * canvasのリサイズ処理
@@ -129,6 +138,10 @@ class FishingGame
         this.currentScene = newScene;
     }
 
+    dispose() {
+      const hardwareModel = this.hardwareModel;
+      hardwareModel.dispose();
+    }
 }
 
 

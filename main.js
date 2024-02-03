@@ -15,9 +15,11 @@ const Config = {
 
   }
 
+let game = null;
 
 window.onload = () => onloadWindow();
 
+window.onunload = () => game.dispose();
 
 /**
  * ウィンドウのロードが完了した時に呼ばれるイベント
@@ -25,19 +27,38 @@ window.onload = () => onloadWindow();
  * @return {void}
  */
 function onloadWindow() {
-    const game = new FishingGame(Config.Screen.Width, Config.Screen.Height, Config.Screen.BackGroundColor);
-    document.getElementById("t1").innerHTML = "<div style=\"color:white\">Loading..</div>";
-    //cssのidを設定
-    game.app.view.id = "game-screen";    
-    const robotArms = game.robotArms;
-    const inputManager = new VPadInputManager(robotArms);
+    game = new FishingGame(Config.Screen.Width, Config.Screen.Height, Config.Screen.BackGroundColor);
+}
 
-    game.onload = () => {
-        game.replaceScene(new MainScene(inputManager));
-    }
+/**
+ * @classdesc メインアプリケーションクラス
+ */
+class MainApp {
 
-    //データのロード
-    game.preload();
+  game = null;
+
+  /**
+   * メイン関数
+   */
+  static main() {
+    const app = new MainApp();
+  }
+
+  /**
+   * コンストラクタ
+   */
+  constructor() {
+    window.onload = () => onloadWindow();
+    window.onunload = () => game.dispose();    
+  }
+
+  /**
+   * ウィンドウのロードが完了した時に呼ばれるイベント
+   */
+  onloadWindow() {
+    game = new FishingGame(Config.Screen.Width, Config.Screen.Height, Config.Screen.BackGroundColor);
+  }
+
 }
 
 /**
@@ -77,15 +98,16 @@ class MainScene extends Container {
 
   #_leftInputManager;
   #_rightInputManager;
-
+  #_hardwareModel;
 
   /**
    * コンストラクタ
    * @param {VPadInputManager} vpadInputManager バーチャルバッドの入力管理クラスを指定します。
    * @param {HardwareModel} hardwareModel 　ハードウェアモデルを指定します。
    */
-  constructor(vpadInputManager){
+  constructor(vpadInputManager, hardwareModel){
     super();
+    this.#_hardwareModel = hardwareModel;
     this.inputManager = vpadInputManager;
     this.#_leftInputManager = this.inputManager.inputLeft;
     this.#_rightInputManager = this.inputManager.inputRight;
@@ -104,27 +126,27 @@ class MainScene extends Container {
     this.updateDirectionCheck();
 
     // 左パッドのボタンチェック
-    this.onButtonRelease = (output) => {
-        console.log("name=" + output.name + ", updown=" + output.upDown + ", leftRight=" + output.leftRight);
-        const padControlModel = this.#_leftInputManager.padControlModel;
-        const robotArmsController = new RobotArmsController(padControlModel, null);
-        robotArmsController.update(output);
-        this.resetDirection(output);
-    }
+    const leftPadRobotArmsController = this.registerButtonRelease(this.#_leftInputManager.padControlModel);
+    const resultLeft = this.checkButton(leftPadRobotArmsController, 
+                                      this.inputManager.inputLeft, 
+                                      this.#Prop.leftKeyCount);
 
-    const resultLeft = this.checkButton(this.inputManager.inputLeft, this.#Prop.leftKeyCount);
+    const rightPadRobotArmsController = this.registerButtonRelease(this.#_rightInputManager.padControlModel);
+    const resuktRight = this.checkButton(rightPadRobotArmsController,
+                                      this.inputManager.inputRight,
+                                      this.#Prop.rightKeyCount);
 
-    // 右パッドのボタンチェック
-    this.onButtonRelease = (output) => {
-      console.log("name=" + output.name + ", updown=" + output.upDown + ", leftRight=" + output.leftRight);
-      const padControlModel = this.#_rightInputManager.padControlModel;
-      const robotArmsController = new RobotArmsController(padControlModel, null);
+  }
+
+  registerButtonRelease(padControlModel) {
+    const hardwareModel = this.#_hardwareModel;
+    const robotArmsController = new RobotArmsController(padControlModel, hardwareModel);
+    robotArmsController.onButtonRelease = (output) => {
       robotArmsController.update(output);
-    this.resetDirection(output);
+      this.resetDirection(output);
     }
-    const resuktRight = this.checkButton(this.inputManager.inputRight, this.#Prop.rightKeyCount);
 
-    this.onButtonRelease = () => { }
+    return robotArmsController;
   }
 
   updateDirectionCheck() {
@@ -177,28 +199,28 @@ class MainScene extends Container {
     return dir;
   }
 
-  checkButton(input, output) {
+  checkButton(controller, input, output) {
     if (input.checkButton("Up") == input.keyStatus.RELEASE) {
       //上方向を離した時
-      this.onButtonRelease(output);
+      controller.onButtonRelease(output);
       return input.keyStatus.RELEASE;
     }
 
     if (input.checkButton("Down") == input.keyStatus.RELEASE) {
       //下方向を離した時
-      this.onButtonRelease(output);
+      controller.onButtonRelease(output);
       return input.keyStatus.RELEASE;
     }
 
     if (input.checkButton("Left") == input.keyStatus.RELEASE) {
       //左方向を離した時
-      this.onButtonRelease(output);
+      controller.onButtonRelease(output);
       return input.keyStatus.RELEASE;
     }
 
     if (input.checkButton("Right") == input.keyStatus.RELEASE) {
       //右方向を離した時
-      this.onButtonRelease(output);
+      controller.onButtonRelease(output);
       return input.keyStatus.RELEASE;
     }
 
@@ -213,9 +235,6 @@ class MainScene extends Container {
     output.leftRight = 0;
   }
 
-  onButtonRelease = (output) => { 
-    console.log("onButtonRelease");
-  }
 }
 
 

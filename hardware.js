@@ -15,40 +15,81 @@ class HardwareModel {
      */
     driver = null;
 
+    game = null;
+
     /**
      * コンストラクタ
      */
-    constructor() {
-        // this.obniz = new Obniz("6453-5471", { access_token:"j6S9JqzEUQwLg5Q6WpVgDDabnHkwx4_pNTe3L2Fw2ZGSAAg5qqFG10_ugfd7geHN" })
-    }
-
-    /**
-     * 接続時の処理
-     */
-    onconnect = () => {
-        this.obniz.onconnect = async function() {
+    constructor(game) {
+        this.game = game;
+        this.obniz = new Obniz("6453-5471", { access_token:"rFaoiZa8KbZHUrp1Z3RUDCSPqk14cdOVrjm_e1Ry8J0P7ZQluoboLTVL4YJLsW8E" })
+        this.obniz.onconnect = () => {
             document.getElementById("t1").innerHTML = "";
+            const obniz = this.obniz;
+            var i2c = obniz.getFreeI2C();
+            i2c.start({mode:"master", sda:1, scl:0, clock:400 * 1000 });
+
             var driver = obniz.wired("PCA9685", {i2c:i2c, address:0x40  });
             driver.freq(60);
             this.driver = driver;
+            driver.pulse(4, 1400);
+            
+            // ゲームのメイン処理を開始します。
+            const game = this.game;
+            game.main();
           }
-   }
+    }
 
    /**
     * ハードウェアをドライブ‘します。
     * @param {AbstractArmModel} armModel アームモデルのインスタンスを指定します。
     * @param {number} pulseCounts パルス数を指定します。
     */
-   drive(armModel, pulseCounts) {
+   drive(armModel) {
        const driver = this.driver;
        if (driver == null) {
               return;
        }
 
-       const number = armModel.number;
-       driver.pulse(number, pulseCounts);
-   }
 
+        const asyncFunc = async () => {
+            const number = armModel.number;
+
+            let operationPuluse = armModel.updatedPulseCounts;
+            const pulseCounts = (Math.abs(armModel.pulse) * 5);
+            const stepCount = (armModel.pulse >= 0) ? armModel.stepCount : -armModel.stepCount;
+            const waitTime = armModel.waitTime;
+            for (let ii = 0; ii < pulseCounts; ii++) {
+                let pulsed = operationPuluse;
+                let outPulse = pulsed + stepCount;
+                if (outPulse > armModel.maxPulse) {
+                    outPulse = armModel.maxPulse;
+                }
+                else if (outPulse < armModel.minPulse) {
+                    outPulse = armModel.minPulse;
+                }
+     
+                console.log("number=" + number + ", outPulse=" + (outPulse / 1000));
+                driver.pulse(number, (outPulse / 1000));
+                await this.obniz.wait(waitTime);
+                operationPuluse = outPulse;
+                if ((outPulse == armModel.maxPulse) || (outPulse == armModel.minPulse)) {
+                    break;
+                }
+            }
+
+            armModel.update(operationPuluse);
+        }
+
+        asyncFunc();
+    }
+
+    dispose() {
+        const obniz = this.obniz;
+        const driver = this.driver;
+        obniz.reset();
+        obniz.closeWait();;    
+    }
 }
 
 
@@ -58,7 +99,7 @@ class HardwareModel {
 class RobotArmsController {
 
     #_padControlModel = null;
-    #_driver = null;
+    #_hardwareModel = null;
     /**
      * コンストラクタ
      * @param {PadControllerModel} padControlModel パッドコントローラーモデルのインスタンスを指定します。
@@ -66,13 +107,13 @@ class RobotArmsController {
      */
     constructor(padControlModel, hardwareModel) {
 
-        // this.#_driver = hardwareModel.driver;
+        this.#_hardwareModel = hardwareModel;
         this.#_padControlModel = padControlModel;
     }
 
     update(keyProp) {
         const padControlModel = this.#_padControlModel;
-        const driver = this.#_driver;
+        const driver = this.#_hardwareModel;
 
         const padUpDownHardwareModel = padControlModel.padUpDownHardwareModel;
         padUpDownHardwareModel.pulse = keyProp.upDown;
@@ -85,25 +126,19 @@ class RobotArmsController {
 
     /**
      *  ハードウェアをドライブします。
-     * @param {Motor} hardwareModel 
+     * @param {Motor} padHardwareModel 
      */
-    drive(hardwareModel) {
-
-        // Motor.update();
-        hardwareModel.update();
-
-        const armNumber = hardwareModel.number;
-        const pulseCounts = hardwareModel.updatedPulseCounts;
+    drive(padHardwareModel) {
+        const hardwareModel = this.#_hardwareModel;
+        const armNumber = padHardwareModel.number;
+        const pulseCounts = padHardwareModel.pulse;
 
         console.log("armNumber=" + armNumber + ", pulseCounts=" + pulseCounts);
-        this.asyncFunc();
-        // driver.pulse(armNumber, pulseCounts);
+        hardwareModel.drive(padHardwareModel);
     }
 
-    async asyncFunc() {
-        console.log('calling');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-    }
+    onButtonRelease = (output) => {}
+
 }
 
 
@@ -297,12 +332,12 @@ class Motor {
 
     /**
      * コンストラクタ
-     * @param {AbstractArm} armModel 
+     * @param {AbstractArmModel} armModel 
      */
     constructor(armModel) {
-        this.oprationPulse = 0;
+        this.operationPulse = armModel.pulse;
         this.armModel = armModel;
-        this.number = armModel.armNumber;
+        this.number = armModel.chanelNumber;
     }
 
     /**
@@ -330,10 +365,42 @@ class Motor {
     }
 
     /**
+     * ステップ数を取得します。
+     * @returns {number} ステップ数を返却します。
+     */
+    get stepCount() {
+        return (!this.armModel.inversion) ? this.armModel.stepCount : -this.armModel.stepCount;
+    }
+
+    /**
+     * 待機時間を取得します。
+     * @returns {number} 待機時間を返却します。
+     */
+    get waitTime() {
+        return this.armModel.waitTime;
+    }
+
+    /**
+     * 最小パルス数を取得します。
+     * @returns {number} 最小パルス数を返却します。
+     */
+    get minPulse() {
+        return this.armModel.minPulse;
+    }
+
+    /**
+     * 最大パルス数を取得します。
+     * @returns {number} 最大パルス数を返却します。
+     */
+    get maxPulse() {
+        return this.armModel.maxPulse;
+    }
+
+    /**
      * パルス数を更新します。
      */
-    update() {
-        this.armModel.update(this.operationPulse);
+    update(pulse) {
+        this.armModel.update(pulse);
     }
 
 }
@@ -375,7 +442,7 @@ class RobotArms
         this.arm4 = new Motor(new Arm4());
         this.arm5 = new Motor(new Arm5());
 
-        this.leftPadControlModel = new PadControllerModel(this.arm2, this.arm3);
+        this.leftPadControlModel = new PadControllerModel(this.arm3, this.arm2);
         this.rightPadControlModel = new PadControllerModel(this.arm4, this.arm5);
     }
 }
@@ -384,7 +451,7 @@ class RobotArms
  * @classdesc ロボットアームの抽象モデルクラス
  * @implements IArmModel
  */
-class AbstractArm  {
+class AbstractArmModel  {
 
     maxPulse = 0;
     minPulse = 0;
@@ -393,21 +460,25 @@ class AbstractArm  {
      * @param {number} maxPulse 
      * @param {number} minPulse 
      * @param {number} initializePulse 
+     * 
      */
-    constructor(maxPulse, minPulse, initializePulse)
+    constructor(maxPulse, minPulse, initializePulse, stepCount, waitTime, inversion)
     {
         this.maxPulse = 0;
         this.maxPulse = maxPulse;
         this.minPulse = minPulse;
         this.pulse = initializePulse;
+        this.stepCount = stepCount;
+        this.waitTime = waitTime;
+        this.inversion = inversion;
     }
 
     /**
      * @brief パルス数を更新する。
-     * @param {number} pulseCounts 
+     * @param {number} updatedpulseCounts 
      */
-    update(pulseCounts) {
-        this.pulse += pulseCounts;
+    update(updatedpulseCounts) {
+        this.pulse = updatedpulseCounts;
         if (this.pulse == 0) return;
 
         if (this.maxPulse < this.pulse) {
@@ -425,14 +496,17 @@ class AbstractArm  {
 /**
  * @classdesc アーム２のモデルクラス
  */
-class Arm2 extends AbstractArm {
+class Arm2 extends AbstractArmModel {
 
     /**
      * @brief コンストラクタ
      */
     constructor() {
-        super(2500, 400, 1400);
+        const inversion = false;
+
+        super(2500, 400, 1400, 5, 1, inversion);
         this.pulse = 1400;
+        this.chanelNumber = 2;
         this.armNumber = 2;
     }
 
@@ -440,17 +514,20 @@ class Arm2 extends AbstractArm {
 
 /**
  * @classdesc アーム３のモデルクラス
- * @extends AbstractArm
+ * @extends AbstractArmModel
  * @implements IArmModel
  */
-class Arm3 extends AbstractArm {
+class Arm3 extends AbstractArmModel {
 
     /**
      * コンストラクタ
      */
     constructor() {
-        super(2500, 400, 1400)
+        const inversion = false;
+
+        super(2500, 400, 1050, 2, 10, false)
         this.pulse = 1050;
+        this.chanelNumber = 4;
         this.armNumber = 3;
     }
 }
@@ -458,14 +535,16 @@ class Arm3 extends AbstractArm {
 /**
  * @classdesc アーム４のモデルクラス
  */
-class Arm4 extends AbstractArm {
+class Arm4 extends AbstractArmModel {
     
     /**
     * コンストラクタ
     */
     constructor() {
-        super(2500, 400, 1400)
-        this.pulse = 1400;
+        const inversion = true;
+        super(2500, 400, 950, 3, 10, inversion)
+        this.pulse = 950;
+        this.chanelNumber = 6;
         this.armNumber = 4;
     }
 }
@@ -473,14 +552,20 @@ class Arm4 extends AbstractArm {
 /**
  * @classdesc アーム５のモデルクラス
  */
-class Arm5 extends AbstractArm {
+class Arm5 extends AbstractArmModel {
 
     /**
     * コンストラクタ
     */
     constructor() {
-        super(2500, 400, 1400)
-        this.pulse = 1400;
+        const initializePulse = 1050;
+        const stepCount = 2;
+        const waitTime = 1;
+        const inversion = true;
+
+        super(2500, 400, initializePulse, stepCount, waitTime, inversion)
+        this.pulse = initializePulse;
+        this.chanelNumber = 8;
         this.armNumber = 5;
     }
 }
