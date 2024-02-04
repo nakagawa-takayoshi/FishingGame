@@ -15,21 +15,6 @@ const Config = {
 
   }
 
-let game = null;
-
-window.onload = () => onloadWindow();
-
-window.onunload = () => game.dispose();
-
-/**
- * ウィンドウのロードが完了した時に呼ばれるイベント
- * @function
- * @return {void}
- */
-function onloadWindow() {
-    game = new FishingGame(Config.Screen.Width, Config.Screen.Height, Config.Screen.BackGroundColor);
-}
-
 /**
  * @classdesc メインアプリケーションクラス
  */
@@ -48,7 +33,7 @@ class MainApp {
    * コンストラクタ
    */
   constructor() {
-    window.onload = () => onloadWindow();
+    window.onload = () => this.onloadWindow();
     window.onunload = () => game.dispose();    
   }
 
@@ -56,10 +41,13 @@ class MainApp {
    * ウィンドウのロードが完了した時に呼ばれるイベント
    */
   onloadWindow() {
-    game = new FishingGame(Config.Screen.Width, Config.Screen.Height, Config.Screen.BackGroundColor);
+    this.game = new FishingGame(Config.Screen.Width, Config.Screen.Height, Config.Screen.BackGroundColor);
   }
 
 }
+
+// ここからプログラム開始
+MainApp.main();
 
 /**
  * @classdesc メインシーンクラス

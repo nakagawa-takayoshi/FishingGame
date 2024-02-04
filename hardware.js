@@ -17,6 +17,11 @@ class HardwareModel {
 
     game = null;
 
+    arm2 = undefined;
+    arm3 = undefined;
+    arm4 = undefined;
+    arm5 = undefined;
+
     /**
      * コンストラクタ
      */
@@ -84,6 +89,39 @@ class HardwareModel {
         asyncFunc();
     }
 
+    resetToOrigin() {
+        const asyncFunc = async () => {
+            const arm2 = this.arm2;
+            const arm3 = this.arm3;
+            const arm4 = this.arm4;
+            const arm5 = this.arm5;
+
+            const driver = this.driver;
+            driver.pulse(arm2.number, (arm2.originPulse / 1000));
+            this.wait(500);
+            driver.pulse(arm3.number, (arm3.originPulse / 1000));
+            this.wait(500);
+            driver.pulse(arm4.number, (arm4.originPulse / 1000));
+            this.wait(500);
+            driver.pulse(arm5.number, (arm5.originPulse / 1000));
+            this.wait(500);
+
+            arm2.update(arm2.originPulse);
+            arm3.update(arm3.originPulse);
+            arm4.update(arm4.originPulse);
+            arm5.update(arm5.originPulse);
+        }
+
+        asyncFunc();
+    }
+
+    wait(time) {
+        this.obniz.wait(time);
+    }
+
+    /**
+     * リソースの後片付けを行います。
+     */
     dispose() {
         const obniz = this.obniz;
         const driver = this.driver;
@@ -115,6 +153,7 @@ class RobotArmsController {
         const padControlModel = this.#_padControlModel;
         const driver = this.#_hardwareModel;
         if (keyProp.home) {
+            this.resetToOrigin();
             return;
         }
 
@@ -142,6 +181,13 @@ class RobotArmsController {
 
     onButtonRelease = (output) => {}
 
+    /**
+     * ロボットアームを原点に戻します。
+     */
+    resetToOrigin() {
+        const hardwareModel = this.#_hardwareModel;
+        hardwareModel.resetToOrigin();
+    }
 }
 
 
@@ -399,6 +445,10 @@ class Motor {
         return this.armModel.maxPulse;
     }
 
+    get originPulse() {
+        return this.armModel.originPulse;
+    }
+
     /**
      * パルス数を更新します。
      */
@@ -444,6 +494,10 @@ class RobotArms
         this.arm3 = new Motor(new Arm3());
         this.arm4 = new Motor(new Arm4());
         this.arm5 = new Motor(new Arm5());
+        hardwareModel.arm2 = this.arm2;
+        hardwareModel.arm3 = this.arm3;
+        hardwareModel.arm4 = this.arm4;
+        hardwareModel.arm5 = this.arm5;
 
         this.leftPadControlModel = new PadControllerModel(this.arm3, this.arm2);
         this.rightPadControlModel = new PadControllerModel(this.arm4, this.arm5);
@@ -474,6 +528,7 @@ class AbstractArmModel  {
         this.stepCount = stepCount;
         this.waitTime = waitTime;
         this.inversion = inversion;
+        this.originPulse = initializePulse;
     }
 
     /**
@@ -506,9 +561,13 @@ class Arm2 extends AbstractArmModel {
      */
     constructor() {
         const inversion = false;
+        const maxPulse = 2500;
+        const minPulse = 400;
+        const initializePulse = 1600;
+        const stepCount = 5;
+        const waitTime = 1;
 
-        super(2500, 400, 1400, 5, 1, inversion);
-        this.pulse = 1400;
+        super(maxPulse, minPulse, initializePulse, stepCount, waitTime, inversion);
         this.chanelNumber = 2;
         this.armNumber = 2;
     }
@@ -561,7 +620,7 @@ class Arm5 extends AbstractArmModel {
     * コンストラクタ
     */
     constructor() {
-        const initializePulse = 1050;
+        const initializePulse = 900;
         const stepCount = 2;
         const waitTime = 1;
         const inversion = true;
