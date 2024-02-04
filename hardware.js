@@ -37,7 +37,6 @@ class HardwareModel {
             var driver = obniz.wired("PCA9685", {i2c:i2c, address:0x40  });
             driver.freq(60);
             this.driver = driver;
-            driver.pulse(4, 1400);
             
             // ゲームのメイン処理を開始します。
             const game = this.game;
@@ -149,6 +148,10 @@ class RobotArmsController {
         this.#_padControlModel = padControlModel;
     }
 
+    /**
+     * ロボットアームの制御を更新します。
+     * @param {#KeyProp} keyProp キーのプロパティを指定します。
+     */
     update(keyProp) {
         const padControlModel = this.#_padControlModel;
         const driver = this.#_hardwareModel;

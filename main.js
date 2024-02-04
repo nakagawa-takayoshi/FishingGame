@@ -43,10 +43,9 @@ class MainApp {
   onloadWindow() {
     this.game = new FishingGame(Config.Screen.Width, Config.Screen.Height, Config.Screen.BackGroundColor);
   }
-
 }
 
-// ここからプログラム開始
+// ここからプログラムが開始
 MainApp.main();
 
 /**
@@ -127,6 +126,11 @@ class MainScene extends Container {
 
   }
 
+  /**
+   * 
+   * @param {PadControllerModel} padControlModel 
+   * @returns ロボットアームコントローラークラスのインスタンスを返却します。
+   */
   registerButtonRelease(padControlModel) {
     const hardwareModel = this.#_hardwareModel;
     const robotArmsController = new RobotArmsController(padControlModel, hardwareModel);
@@ -138,20 +142,24 @@ class MainScene extends Container {
     return robotArmsController;
   }
 
+  /**
+   * 方向キーチェックを更新します。
+   */
   updateDirectionCheck() {
-    const oblique = 1 / Math.sqrt(2);//ななめ移動の値
     this.directionCheck(this.inputManager.inputLeft, this.#Prop.leftKeyCount);
     this.directionCheck(this.inputManager.inputRight, this.#Prop.rightKeyCount);
   }
 
+  /**
+   * 
+   * @param {InpuManager} input 入力マネージャーのインスタンスを指定します。
+   * @param {Prop} output 出力プロパティを指定します。
+   * @returns 方向の値を返却します。
+   */
   directionCheck(input, output)
   {
     const oblique = 1 / Math.sqrt(2);//ななめ移動の値
     const dir = input.checkDirection();
-    if (dir != 0)
-    {
-      const a = 1;
-    }
     switch(input.checkDirection()) {
       case input.keyDirections.UP:
         output.upDown++;
@@ -188,6 +196,13 @@ class MainScene extends Container {
     return dir;
   }
 
+  /**
+   * ボタンの状態をチェックします。
+   * @param {RobotArmsController} controller ロボットアームのコントローラーのインスタンスを指定します。
+   * @param {InputManager} input 入力マネージャーのインスタンスを指定します。
+   * @param {#KeyProp} output 出力先のプロパティを指定します。
+   * @returns 
+   */
   checkButton(controller, input, output) {
     if (input.checkButton("Up") == input.keyStatus.RELEASE) {
       //上方向を離した時
