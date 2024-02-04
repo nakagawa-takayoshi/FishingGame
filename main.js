@@ -87,6 +87,7 @@ class MainScene extends Container {
   #_leftInputManager;
   #_rightInputManager;
   #_hardwareModel;
+  #_hardwareController;
 
   /**
    * コンストラクタ
@@ -95,6 +96,7 @@ class MainScene extends Container {
    */
   constructor(vpadInputManager, hardwareModel){
     super();
+    this.#_hardwareController = new HardwareController(vpadInputManager, hardwareModel);
     this.#_hardwareModel = hardwareModel;
     this.inputManager = vpadInputManager;
     this.#_leftInputManager = this.inputManager.inputLeft;

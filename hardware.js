@@ -28,6 +28,12 @@ class HardwareModel {
     constructor(game) {
         this.game = game;
         this.obniz = new Obniz("6453-5471", { access_token:"rFaoiZa8KbZHUrp1Z3RUDCSPqk14cdOVrjm_e1Ry8J0P7ZQluoboLTVL4YJLsW8E" })
+
+        this.arm2 = new Motor(new Arm2());
+        this.arm3 = new Motor(new Arm3());
+        this.arm4 = new Motor(new Arm4());
+        this.arm5 = new Motor(new Arm5());
+
         this.obniz.onconnect = () => {
             document.getElementById("t1").innerHTML = "";
             const obniz = this.obniz;
@@ -114,6 +120,10 @@ class HardwareModel {
         asyncFunc();
     }
 
+    /**
+     * 指定時間を待ちます。
+     * @param {number} time 待ち時間を指定します。
+     */
     wait(time) {
         this.obniz.wait(time);
     }
@@ -134,9 +144,9 @@ class HardwareModel {
  * @classdesc ロボットアーム制御クラス
  */
 class RobotArmsController {
-
     #_padControlModel = null;
     #_hardwareModel = null;
+
     /**
      * コンストラクタ
      * @param {PadControllerModel} padControlModel パッドコントローラーモデルのインスタンスを指定します。
@@ -247,8 +257,8 @@ class HardwareController {
      * 更新処理
      */
     update() {
-        updateLeftPad();
-        updateRightPad();
+        this.updateLeftPad();
+        this.updateRightPad();
     }
 
     updateLeftPad() {
@@ -267,6 +277,9 @@ class HardwareController {
 
 }
 
+/**
+ * @classdesc パッド入力コントローラークラス
+ */
 class PadInputController {
 
     #_inputManager = null;
@@ -279,11 +292,20 @@ class PadInputController {
         this.#_inputManager = inputManager;
     }
 
+    /**
+     * パッド入力の更新処理
+     * @param {KeyProp} output プロパティを指定します。
+     */
     update(output) {
         this.directionCheck(output);
         this.buttonCheck(output);
     }
 
+    /**
+     * 方向の入力チェックを行います。
+     * @param {KeyProp} output 出力プロパティを指定します。
+     * @returns 入力方向を返却します。
+     */
     directionCheck(output)
     {
         const inputManager = this.#_inputManager;
@@ -325,6 +347,11 @@ class PadInputController {
         return dir;
     }
   
+    /**
+     * パッドの入力をチェックします。
+     * @param {KeyProp} output プロパティを指定します。
+     * @returns 
+     */
     checkButton(output) {
         const inputManager = this.#_inputManager;
         if (inputManager.checkButton("Up") == inputManager.keyStatus.RELEASE) {
@@ -354,6 +381,10 @@ class PadInputController {
         return inputManager.keyStatus.UNDOWN;
     }
 
+    /**
+     * 
+     * @param {*} output 
+     */
     onButtonRelease(output) {
         const inputManager = this.#_inputManager;
         console.log("name=" + output.name + ", updown=" + output.upDown + ", leftRight=" + output.leftRight);
@@ -493,17 +524,13 @@ class RobotArms
      */
     constructor(hardwareModel) {
         this.hardwareModel = hardwareModel;
-        this.arm2 = new Motor(new Arm2());
-        this.arm3 = new Motor(new Arm3());
-        this.arm4 = new Motor(new Arm4());
-        this.arm5 = new Motor(new Arm5());
-        hardwareModel.arm2 = this.arm2;
-        hardwareModel.arm3 = this.arm3;
-        hardwareModel.arm4 = this.arm4;
-        hardwareModel.arm5 = this.arm5;
+        const arm2 = hardwareModel.arm2;
+        const arm3 = hardwareModel.arm3;
+        const arm4 = hardwareModel.arm4;
+        const arm5 = hardwareModel.arm5;
 
-        this.leftPadControlModel = new PadControllerModel(this.arm3, this.arm2);
-        this.rightPadControlModel = new PadControllerModel(this.arm4, this.arm5);
+        this.leftPadControlModel = new PadControllerModel(arm3, arm2);
+        this.rightPadControlModel = new PadControllerModel(arm4, arm5);
     }
 }
 
