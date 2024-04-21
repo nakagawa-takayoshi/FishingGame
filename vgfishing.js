@@ -15,14 +15,17 @@ class FishingGame
     constructor(width, height, color) 
     {      
         document.getElementById("t1").innerHTML = "<div style=\"color:white\">Loading..</div>";
+
         const pixiApp = new PIXI.Application({
-            width: width, 
-            height: height,                       
-            backgroundColor: color,      
+            width: 0,
+            height: 0,                       
+            backgroundColor: 0,      
             resolution: 1,
             autoDensity: true
         })
         document.body.appendChild(pixiApp.view);
+
+
         //右クリックで出るメニューを非表示に
         pixiApp.view.addEventListener("contextmenu", function(e){
             e.preventDefault();
@@ -642,7 +645,7 @@ class InputManager {
     if (navigator.userAgent.match(/iPhone|iPad|Android/)) {
       document.getElementById("t1").innerHTML = "";
       this.vpad = new Vpad(pad, this.input, descriptor);
-    }
+      }
     else {
       document.getElementById("t1").innerHTML = "<div style=\"color: white;\">スマホでアクセスして下さい。</div>";
     }
