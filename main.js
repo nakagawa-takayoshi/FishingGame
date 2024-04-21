@@ -15,6 +15,8 @@ const Config = {
 
   }
 
+const LiveViewImage = "<img style=\"position: absolute; margin-left: -150px;\" src=\"https://www.givetakewinwin.com/cam_image.png\"/>";
+
 /**
  * @classdesc メインアプリケーションクラス
  */
@@ -98,8 +100,15 @@ class MainScene extends Container {
     this.inputManager = vpadInputManager;
     this.#_leftInputManager = this.inputManager.inputLeft;
     this.#_rightInputManager = this.inputManager.inputRight;
+    setInterval(this.livwViewUpdate, 1000);
   }
 
+  livwViewUpdate()
+  {
+    const screen = document.getElementById("t1");
+    screen.innerHTML=LiveViewImage;
+    console.log("liveViewUpdate");
+  }
 
   /**
    * 更新処理
@@ -107,6 +116,7 @@ class MainScene extends Container {
    * @override
    */
   update(delta) {
+    
     super.update(delta);
 
     // 方向キーのボタンチェック
@@ -122,8 +132,8 @@ class MainScene extends Container {
     const resuktRight = this.checkButton(rightPadRobotArmsController,
                                       this.inputManager.inputRight,
                                       this.#Prop.rightKeyCount);
-
-  }
+}
+ 
 
   /**
    * 
