@@ -205,7 +205,7 @@ class HardwareController {
     updateLeftPad() {
         const hardwareModel = this.#_hardwareModel;
         const inputManager = this.#_leftPadInputManager;
-        const leftPadContrioller = new PadInputController(inputManager)
+        const leftPadContrioller = new LeftPadInputManager(inputManager)
         leftPadContrioller.update(this.#Prop.leftKeyCount);
     }
 
@@ -218,6 +218,10 @@ class HardwareController {
 
 }
 
+
+/**
+ * @classdesc 右パッド入力コントローラークラス
+ */
 class PadInputController {
 
     #_inputManager = null;
@@ -323,6 +327,118 @@ class PadInputController {
     }
 }
 
+class LeftPadInputManager 
+{
+    #_inputManager = null;
+    #_leftRightIndex = 2;
+    #_m2PulseTable = new Array(80, 40, 0, -40, -80)
+
+    /**
+     * コンストラクタ
+     * @param {InputManager} inputManager
+     */
+    constructor(inputManager) {
+        this.#_inputManager = inputManager;
+    }
+
+    update(output) {
+        this.directionCheck(output);
+        this.buttonCheck(output);
+    }
+
+    directionCheck(output)
+    {
+        const inputManager = this.#_inputManager;
+        const oblique = 1 / Math.sqrt(2);//ななめ移動の値
+        const dir = inputManager.checkDirection();
+        switch(inputManager.checkDirection()) {
+            case inputManager.keyDirections.UP:
+            output.upDown++;
+            break;
+            case inputManager.keyDirections.UP_RIGHT:
+            output.upDown += oblique;
+            output.leftRight += oblique;
+            break;
+            case inputManager.keyDirections.RIGHT:
+            output.leftRight++;     
+            break;
+            case inputManager.keyDirections.DOWN_RIGHT:
+            output.upDown -= oblique;
+            output.leftRight += oblique;     
+            break;
+            case inputManager.keyDirections.DOWN:
+            output.upDown--;
+            break;
+            case inputManager.keyDirections.DOWN_LEFT:
+            output.upDown -= oblique;
+            output.leftRight -= oblique;     
+            break;
+            case inputManager.keyDirections.LEFT:
+            output.leftRight--;     
+            break;
+            case inputManager.keyDirections.UP_LEFT:
+            output.upDown += oblique;
+            output.leftRight -= oblique;     
+            break;
+            default:
+            break;
+        }
+    
+        return dir;
+    }
+  
+    checkButton(output) {
+        const inputManager = this.#_inputManager;
+        if (inputManager.checkButton("Up") == inputManager.keyStatus.RELEASE) {
+          //上方向を離した時
+          this.onButtonRelease(output);
+          return inputManager.keyStatus.RELEASE;
+        }
+    
+        if (inputManager.checkButton("Down") == inputManager.keyStatus.RELEASE) {
+          //下方向を離した時
+          this.onButtonRelease(output);
+          return inputManager.keyStatus.RELEASE;
+        }
+    
+        if (inputManager.checkButton("Left") == inputManager.keyStatus.RELEASE) {
+            if (this.#_leftRightIndex <= 0) return inputManager.keyStatus.RELEASE;
+            //左方向を離した時
+            this.#_leftRightIndex--;
+            output.leftRight = this.#_m2PulseTable[this.#_leftRightIndex];
+            this.onButtonRelease(output);
+            return inputManager.keyStatus.RELEASE;
+        }
+    
+        if (inputManager.checkButton("Right") == inputManager.keyStatus.RELEASE) {
+            this.#_leftRightIndex--;
+            output.leftRight = this.#_m2PulseTable[this.#_leftRightIndex];
+            //右方向を離した時
+          this.onButtonRelease(output);
+        return inputManager.keyStatus.RELEASE;
+        }
+    
+        return inputManager.keyStatus.UNDOWN;
+    }
+
+    onButtonRelease(output) {
+        const inputManager = this.#_inputManager;
+        console.log("name=" + output.name + ", updown=" + output.upDown + ", leftRight=" + output.leftRight);
+        const padControlModel = inputManager.padControlModel;
+        const robotArmsController = new RobotArmsController(padControlModel, this.hardwareModel);
+        robotArmsController.update(output);
+        this.resetDirection(output);
+    }
+
+    //
+    // 方向リセット
+    //
+    resetDirection(output) {
+        output.upDown = 0;
+        output.leftRight = 0;
+    }
+
+}
 
 /**
  * @classdesc モーターのモデルクラス
