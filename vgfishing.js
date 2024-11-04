@@ -17,11 +17,7 @@ class FishingGame
         document.getElementById("t1").innerHTML = "<div style=\"color:white\">Loading..</div>";
 
         const pixiApp = new PIXI.Application({
-<<<<<<< HEAD
             width: 0, 
-=======
-            width: 0,
->>>>>>> remotes/origin/main
             height: 0,                       
             backgroundColor: 0,      
             resolution: 1,
@@ -704,13 +700,8 @@ class InputManager {
    //スマホ・タブレットの時だけv-pad表示
     if (navigator.userAgent.match(/iPhone|iPad|Android/)) {
       document.getElementById("t1").innerHTML = "";
-<<<<<<< HEAD
       this.vpad = new Vpad(pad, this.input, descriptor, buttonKey);
     }
-=======
-      this.vpad = new Vpad(pad, this.input, descriptor);
-      }
->>>>>>> remotes/origin/main
     else {
       document.getElementById("t1").innerHTML = "<div style=\"color: white;\">スマホでアクセスして下さい。</div>";
     }
