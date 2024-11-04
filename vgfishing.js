@@ -15,14 +15,21 @@ class FishingGame
     constructor(width, height, color) 
     {      
         document.getElementById("t1").innerHTML = "<div style=\"color:white\">Loading..</div>";
+
         const pixiApp = new PIXI.Application({
+<<<<<<< HEAD
             width: 0, 
+=======
+            width: 0,
+>>>>>>> remotes/origin/main
             height: 0,                       
             backgroundColor: 0,      
             resolution: 1,
             autoDensity: true
         })
         document.body.appendChild(pixiApp.view);
+
+
         //右クリックで出るメニューを非表示に
         pixiApp.view.addEventListener("contextmenu", function(e){
             e.preventDefault();
@@ -697,8 +704,13 @@ class InputManager {
    //スマホ・タブレットの時だけv-pad表示
     if (navigator.userAgent.match(/iPhone|iPad|Android/)) {
       document.getElementById("t1").innerHTML = "";
+<<<<<<< HEAD
       this.vpad = new Vpad(pad, this.input, descriptor, buttonKey);
     }
+=======
+      this.vpad = new Vpad(pad, this.input, descriptor);
+      }
+>>>>>>> remotes/origin/main
     else {
       document.getElementById("t1").innerHTML = "<div style=\"color: white;\">スマホでアクセスして下さい。</div>";
     }

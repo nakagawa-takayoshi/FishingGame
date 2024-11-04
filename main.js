@@ -15,9 +15,9 @@ const Config = {
 
   }
 
-  const LiveViewImage = "<img style=\"position: absolute; margin-left: -150px;\" src=\"https://www.givetakewinwin.com/cam_image.png\"/>";
-  
-  /**
+const LiveViewImage = "<img style=\"position: absolute; margin-left: -150px;\" src=\"https://www.givetakewinwin.com/cam_image.png\"/>";
+
+/**
  * @classdesc メインアプリケーションクラス
  */
 class MainApp {
@@ -120,6 +120,7 @@ class MainScene extends Container {
    * @override
    */
   update(delta) {
+    
     super.update(delta);
 
     // 方向キーのボタンチェック
@@ -135,8 +136,8 @@ class MainScene extends Container {
     const resuktRight = this.checkButton(rightPadRobotArmsController,
                                       this.inputManager.inputRight,
                                       this.#Prop.rightKeyCount);
-
-  }
+}
+ 
 
   /**
    * 
