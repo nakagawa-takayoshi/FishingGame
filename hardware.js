@@ -88,7 +88,33 @@ class HardwareModel {
                 }
             }
 
+            if (armModel.autoReset == true) {
+                driver.pulse(number, (armModel.originPulse / 1000));
+                console.log("number=" + number + ", originPulse=" + (armModel.originPulse / 1000));
+                armModel.update(armModel.originPulse);
+                return;
+            }
+
             armModel.update(operationPuluse);
+        }
+
+        asyncFunc();
+    }
+ 
+    resetToStop() {
+        const asyncFunc = async () => {
+            const arm2 = this.arm2;
+            const arm3 = this.arm3;
+            const arm4 = this.arm4;
+            const arm5 = this.arm5;
+
+            const driver = this.driver;
+            driver.pulse(arm3.number, (arm3.originPulse / 1000));
+            driver.pulse(arm4.number, (arm4.originPulse / 1000));
+
+            console.log("reset to stop");
+            arm3.update(arm3.originPulse);
+            arm4.update(arm4.originPulse);
         }
 
         asyncFunc();
@@ -102,15 +128,14 @@ class HardwareModel {
             const arm5 = this.arm5;
 
             const driver = this.driver;
-            driver.pulse(arm2.number, (arm2.originPulse / 1000));
-            this.wait(500);
             driver.pulse(arm3.number, (arm3.originPulse / 1000));
-            this.wait(500);
             driver.pulse(arm4.number, (arm4.originPulse / 1000));
-            this.wait(500);
+            driver.pulse(arm2.number, (arm2.originPulse / 1000));
+            this.wait(100);
             driver.pulse(arm5.number, (arm5.originPulse / 1000));
-            this.wait(500);
+            this.wait(100);
 
+            console.log("reset to origin");
             arm2.update(arm2.originPulse);
             arm3.update(arm3.originPulse);
             arm4.update(arm4.originPulse);
@@ -165,9 +190,13 @@ class RobotArmsController {
     update(keyProp) {
         const padControlModel = this.#_padControlModel;
         const driver = this.#_hardwareModel;
+        if (keyProp.stop) {
+            this.resetToStop();
+            return;
+        }
+
         if (keyProp.home) {
             this.resetToOrigin();
-            return;
         }
 
         const padUpDownHardwareModel = padControlModel.padUpDownHardwareModel;
@@ -189,6 +218,7 @@ class RobotArmsController {
         const pulseCounts = padHardwareModel.pulse;
 
         console.log("armNumber=" + armNumber + ", pulseCounts=" + pulseCounts);
+
         hardwareModel.drive(padHardwareModel);
     }
 
@@ -197,6 +227,11 @@ class RobotArmsController {
     /**
      * ロボットアームを原点に戻します。
      */
+    resetToStop() {
+        const hardwareModel = this.#_hardwareModel;
+        hardwareModel.resetToStop();
+    }
+
     resetToOrigin() {
         const hardwareModel = this.#_hardwareModel;
         hardwareModel.resetToOrigin();
@@ -316,28 +351,24 @@ class PadInputController {
             output.upDown++;
             break;
             case inputManager.keyDirections.UP_RIGHT:
-            output.upDown += oblique;
             output.leftRight += oblique;
             break;
             case inputManager.keyDirections.RIGHT:
             output.leftRight++;     
             break;
             case inputManager.keyDirections.DOWN_RIGHT:
-            output.upDown -= oblique;
             output.leftRight += oblique;     
             break;
             case inputManager.keyDirections.DOWN:
             output.upDown--;
             break;
             case inputManager.keyDirections.DOWN_LEFT:
-            output.upDown -= oblique;
             output.leftRight -= oblique;     
             break;
             case inputManager.keyDirections.LEFT:
             output.leftRight--;     
             break;
             case inputManager.keyDirections.UP_LEFT:
-            output.upDown += oblique;
             output.leftRight -= oblique;     
             break;
             default:
@@ -483,6 +514,10 @@ class Motor {
         return this.armModel.originPulse;
     }
 
+    get autoReset() {
+        return this.armModel.autoReset;
+    }
+
     /**
      * パルス数を更新します。
      */
@@ -542,6 +577,8 @@ class AbstractArmModel  {
 
     maxPulse = 0;
     minPulse = 0;
+    autoReset = true;
+
     /**
      * @brief コンストラクタ
      * @param {number} maxPulse 
@@ -549,7 +586,7 @@ class AbstractArmModel  {
      * @param {number} initializePulse 
      * 
      */
-    constructor(maxPulse, minPulse, initializePulse, stepCount, waitTime, inversion)
+    constructor(maxPulse, minPulse, initializePulse, stepCount, waitTime, inversion, autoReset)
     {
         this.maxPulse = 0;
         this.maxPulse = maxPulse;
@@ -559,6 +596,7 @@ class AbstractArmModel  {
         this.waitTime = waitTime;
         this.inversion = inversion;
         this.originPulse = initializePulse;
+        this.autoReset = autoReset;
     }
 
     /**
@@ -593,11 +631,12 @@ class Arm2 extends AbstractArmModel {
         const inversion = false;
         const maxPulse = 2500;
         const minPulse = 400;
-        const initializePulse = 1200;
-        const stepCount = 5;
-        const waitTime = 1;
+        const initializePulse = 1000;
+        const stepCount = 2;
+        const waitTime = 5;
 
-        super(maxPulse, minPulse, initializePulse, stepCount, waitTime, inversion);
+        super(maxPulse, minPulse, initializePulse, stepCount, waitTime, inversion, false);
+        this.pulse = initializePulse;
         this.chanelNumber = 2;
         this.armNumber = 2;
     }
@@ -617,8 +656,8 @@ class Arm3 extends AbstractArmModel {
     constructor() {
         const inversion = false;
 
-        super(2500, 400, 1050, 2, 10, false)
-        this.pulse = 1050;
+        super(2500, 400, 1360, 2, 10, false, true)
+        this.pulse = 1360;
         this.chanelNumber = 4;
         this.armNumber = 3;
     }
@@ -634,8 +673,8 @@ class Arm4 extends AbstractArmModel {
     */
     constructor() {
         const inversion = true;
-        super(2500, 400, 1360, 3, 10, inversion)
-        this.pulse = 950;
+        super(2500, 400, 1360, 3, 10, inversion, true)
+        this.pulse = 1360;
         this.chanelNumber = 6;
         this.armNumber = 4;
     }
@@ -650,12 +689,12 @@ class Arm5 extends AbstractArmModel {
     * コンストラクタ
     */
     constructor() {
-        const initializePulse = 1700;
+        const initializePulse = 1600;
         const stepCount = 2;
         const waitTime = 1;
         const inversion = true;
 
-        super(2500, 400, initializePulse, stepCount, waitTime, inversion)
+        super(2500, 400, initializePulse, stepCount, waitTime, inversion, false)
         this.pulse = initializePulse;
         this.chanelNumber = 8;
         this.armNumber = 5;

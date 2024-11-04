@@ -262,7 +262,7 @@ class Vpad {
       const buttonKey = this.#_buttonKey;
       if (!buttonKey) return;
 
-      //STARTボタン作成
+      //Stopボタン作成
       const style = {
         width: `${vpad.height * 0.3}px`,
         height: `${vpad.height * 0.15}px`,
@@ -271,8 +271,17 @@ class Vpad {
         borderRadius: `${vpad.height * 0.15 * 0.5}px`
       }
 
-      this.startKey = new ActBtn(pad, this.input, "Home", "Home", style);
+      this.startKey = new ActBtn(pad, this.input, "Stop", "Stop", style);
 
+      const resetButtonStyle = {
+        width: `${vpad.height * 0.25}px`,
+        height: `${vpad.height * 0.25}px`,
+        right: `${vpad.height * 0.01}px`,
+        top: `${vpad.height * 0.005}px`,
+        borderRadius: `${vpad.height * 0.15 }px`
+      }
+
+      this.resetKey = new ActBtn(pad, this.input, "A", "Home", resetButtonStyle);
     }
 }
   
@@ -670,7 +679,7 @@ class InputManager {
         Left: false,
         A: false,
         B: false,
-        Home: false
+        Stop: false
       },
       //一つ前のキーの状態管理用
       keysPrev: {
@@ -680,11 +689,12 @@ class InputManager {
         Left: false,
         A: false,
         B: false,
-        Home: false
+        Stop: false
       },
    };
 
-    //スマホ・タブレットの時だけv-pad表示
+
+   //スマホ・タブレットの時だけv-pad表示
     if (navigator.userAgent.match(/iPhone|iPad|Android/)) {
       document.getElementById("t1").innerHTML = "";
       this.vpad = new Vpad(pad, this.input, descriptor, buttonKey);
