@@ -17,12 +17,23 @@ class HardwareModel {
 
     game = null;
 
+    arm2 = undefined;
+    arm3 = undefined;
+    arm4 = undefined;
+    arm5 = undefined;
+
     /**
      * コンストラクタ
      */
     constructor(game) {
         this.game = game;
         this.obniz = new Obniz("6453-5471", { access_token:"rFaoiZa8KbZHUrp1Z3RUDCSPqk14cdOVrjm_e1Ry8J0P7ZQluoboLTVL4YJLsW8E" })
+
+        this.arm2 = new Motor(new Arm2());
+        this.arm3 = new Motor(new Arm3());
+        this.arm4 = new Motor(new Arm4());
+        this.arm5 = new Motor(new Arm5());
+
         this.obniz.onconnect = () => {
             document.getElementById("t1").innerHTML = "";
             const obniz = this.obniz;
@@ -77,12 +88,74 @@ class HardwareModel {
                 }
             }
 
+            if (armModel.autoReset == true) {
+                driver.pulse(number, (armModel.originPulse / 1000));
+                console.log("number=" + number + ", originPulse=" + (armModel.originPulse / 1000));
+                armModel.update(armModel.originPulse);
+                return;
+            }
+
             armModel.update(operationPuluse);
         }
 
         asyncFunc();
     }
+ 
+    resetToStop() {
+        const asyncFunc = async () => {
+            const arm2 = this.arm2;
+            const arm3 = this.arm3;
+            const arm4 = this.arm4;
+            const arm5 = this.arm5;
 
+            const driver = this.driver;
+            driver.pulse(arm3.number, (arm3.originPulse / 1000));
+            driver.pulse(arm4.number, (arm4.originPulse / 1000));
+
+            console.log("reset to stop");
+            arm3.update(arm3.originPulse);
+            arm4.update(arm4.originPulse);
+        }
+
+        asyncFunc();
+    }
+
+    resetToOrigin() {
+        const asyncFunc = async () => {
+            const arm2 = this.arm2;
+            const arm3 = this.arm3;
+            const arm4 = this.arm4;
+            const arm5 = this.arm5;
+
+            const driver = this.driver;
+            driver.pulse(arm3.number, (arm3.originPulse / 1000));
+            driver.pulse(arm4.number, (arm4.originPulse / 1000));
+            driver.pulse(arm2.number, (arm2.originPulse / 1000));
+            this.wait(100);
+            driver.pulse(arm5.number, (arm5.originPulse / 1000));
+            this.wait(100);
+
+            console.log("reset to origin");
+            arm2.update(arm2.originPulse);
+            arm3.update(arm3.originPulse);
+            arm4.update(arm4.originPulse);
+            arm5.update(arm5.originPulse);
+        }
+
+        asyncFunc();
+    }
+
+    /**
+     * 指定時間を待ちます。
+     * @param {number} time 待ち時間を指定します。
+     */
+    wait(time) {
+        this.obniz.wait(time);
+    }
+
+    /**
+     * リソースの後片付けを行います。
+     */
     dispose() {
         const obniz = this.obniz;
         const driver = this.driver;
@@ -96,9 +169,9 @@ class HardwareModel {
  * @classdesc ロボットアーム制御クラス
  */
 class RobotArmsController {
-
     #_padControlModel = null;
     #_hardwareModel = null;
+
     /**
      * コンストラクタ
      * @param {PadControllerModel} padControlModel パッドコントローラーモデルのインスタンスを指定します。
@@ -117,6 +190,14 @@ class RobotArmsController {
     update(keyProp) {
         const padControlModel = this.#_padControlModel;
         const driver = this.#_hardwareModel;
+        if (keyProp.stop) {
+            this.resetToStop();
+            return;
+        }
+
+        if (keyProp.home) {
+            this.resetToOrigin();
+        }
 
         const padUpDownHardwareModel = padControlModel.padUpDownHardwareModel;
         padUpDownHardwareModel.pulse = keyProp.upDown;
@@ -137,11 +218,24 @@ class RobotArmsController {
         const pulseCounts = padHardwareModel.pulse;
 
         console.log("armNumber=" + armNumber + ", pulseCounts=" + pulseCounts);
+
         hardwareModel.drive(padHardwareModel);
     }
 
     onButtonRelease = (output) => {}
 
+    /**
+     * ロボットアームを原点に戻します。
+     */
+    resetToStop() {
+        const hardwareModel = this.#_hardwareModel;
+        hardwareModel.resetToStop();
+    }
+
+    resetToOrigin() {
+        const hardwareModel = this.#_hardwareModel;
+        hardwareModel.resetToOrigin();
+    }
 }
 
 
@@ -198,8 +292,8 @@ class HardwareController {
      * 更新処理
      */
     update() {
-        updateLeftPad();
-        updateRightPad();
+        this.updateLeftPad();
+        this.updateRightPad();
     }
 
     updateLeftPad() {
@@ -218,6 +312,9 @@ class HardwareController {
 
 }
 
+/**
+ * @classdesc パッド入力コントローラークラス
+ */
 class PadInputController {
 
     #_inputManager = null;
@@ -230,11 +327,20 @@ class PadInputController {
         this.#_inputManager = inputManager;
     }
 
+    /**
+     * パッド入力の更新処理
+     * @param {KeyProp} output プロパティを指定します。
+     */
     update(output) {
         this.directionCheck(output);
         this.buttonCheck(output);
     }
 
+    /**
+     * 方向の入力チェックを行います。
+     * @param {KeyProp} output 出力プロパティを指定します。
+     * @returns 入力方向を返却します。
+     */
     directionCheck(output)
     {
         const inputManager = this.#_inputManager;
@@ -245,28 +351,24 @@ class PadInputController {
             output.upDown++;
             break;
             case inputManager.keyDirections.UP_RIGHT:
-            output.upDown += oblique;
             output.leftRight += oblique;
             break;
             case inputManager.keyDirections.RIGHT:
             output.leftRight++;     
             break;
             case inputManager.keyDirections.DOWN_RIGHT:
-            output.upDown -= oblique;
             output.leftRight += oblique;     
             break;
             case inputManager.keyDirections.DOWN:
             output.upDown--;
             break;
             case inputManager.keyDirections.DOWN_LEFT:
-            output.upDown -= oblique;
             output.leftRight -= oblique;     
             break;
             case inputManager.keyDirections.LEFT:
             output.leftRight--;     
             break;
             case inputManager.keyDirections.UP_LEFT:
-            output.upDown += oblique;
             output.leftRight -= oblique;     
             break;
             default:
@@ -276,6 +378,11 @@ class PadInputController {
         return dir;
     }
   
+    /**
+     * パッドの入力をチェックします。
+     * @param {KeyProp} output プロパティを指定します。
+     * @returns 
+     */
     checkButton(output) {
         const inputManager = this.#_inputManager;
         if (inputManager.checkButton("Up") == inputManager.keyStatus.RELEASE) {
@@ -305,6 +412,10 @@ class PadInputController {
         return inputManager.keyStatus.UNDOWN;
     }
 
+    /**
+     * 
+     * @param {*} output 
+     */
     onButtonRelease(output) {
         const inputManager = this.#_inputManager;
         console.log("name=" + output.name + ", updown=" + output.upDown + ", leftRight=" + output.leftRight);
@@ -399,6 +510,14 @@ class Motor {
         return this.armModel.maxPulse;
     }
 
+    get originPulse() {
+        return this.armModel.originPulse;
+    }
+
+    get autoReset() {
+        return this.armModel.autoReset;
+    }
+
     /**
      * パルス数を更新します。
      */
@@ -440,13 +559,13 @@ class RobotArms
      */
     constructor(hardwareModel) {
         this.hardwareModel = hardwareModel;
-        this.arm2 = new Motor(new Arm2());
-        this.arm3 = new Motor(new Arm3());
-        this.arm4 = new Motor(new Arm4());
-        this.arm5 = new Motor(new Arm5());
+        const arm2 = hardwareModel.arm2;
+        const arm3 = hardwareModel.arm3;
+        const arm4 = hardwareModel.arm4;
+        const arm5 = hardwareModel.arm5;
 
-        this.leftPadControlModel = new PadControllerModel(this.arm3, this.arm2);
-        this.rightPadControlModel = new PadControllerModel(this.arm4, this.arm5);
+        this.leftPadControlModel = new PadControllerModel(arm3, arm2);
+        this.rightPadControlModel = new PadControllerModel(arm4, arm5);
     }
 }
 
@@ -458,6 +577,8 @@ class AbstractArmModel  {
 
     maxPulse = 0;
     minPulse = 0;
+    autoReset = true;
+
     /**
      * @brief コンストラクタ
      * @param {number} maxPulse 
@@ -465,7 +586,7 @@ class AbstractArmModel  {
      * @param {number} initializePulse 
      * 
      */
-    constructor(maxPulse, minPulse, initializePulse, stepCount, waitTime, inversion)
+    constructor(maxPulse, minPulse, initializePulse, stepCount, waitTime, inversion, autoReset)
     {
         this.maxPulse = 0;
         this.maxPulse = maxPulse;
@@ -474,6 +595,8 @@ class AbstractArmModel  {
         this.stepCount = stepCount;
         this.waitTime = waitTime;
         this.inversion = inversion;
+        this.originPulse = initializePulse;
+        this.autoReset = autoReset;
     }
 
     /**
@@ -506,9 +629,14 @@ class Arm2 extends AbstractArmModel {
      */
     constructor() {
         const inversion = false;
+        const maxPulse = 1400;
+        const minPulse = 600;
+        const initializePulse = 1000;
+        const stepCount = 2;
+        const waitTime = 5;
 
-        super(2500, 400, 1400, 5, 1, inversion);
-        this.pulse = 1400;
+        super(maxPulse, minPulse, initializePulse, stepCount, waitTime, inversion, false);
+        this.pulse = initializePulse;
         this.chanelNumber = 2;
         this.armNumber = 2;
     }
@@ -528,8 +656,8 @@ class Arm3 extends AbstractArmModel {
     constructor() {
         const inversion = false;
 
-        super(2500, 400, 1050, 2, 10, false)
-        this.pulse = 1050;
+        super(2500, 400, 1360, 2, 10, false, true)
+        this.pulse = 1360;
         this.chanelNumber = 4;
         this.armNumber = 3;
     }
@@ -545,8 +673,8 @@ class Arm4 extends AbstractArmModel {
     */
     constructor() {
         const inversion = true;
-        super(2500, 400, 950, 3, 10, inversion)
-        this.pulse = 950;
+        super(2500, 400, 1360, 3, 10, inversion, true)
+        this.pulse = 1360;
         this.chanelNumber = 6;
         this.armNumber = 4;
     }
@@ -561,12 +689,12 @@ class Arm5 extends AbstractArmModel {
     * コンストラクタ
     */
     constructor() {
-        const initializePulse = 1050;
+        const initializePulse = 1600;
         const stepCount = 2;
         const waitTime = 1;
-        const inversion = true;
+        const inversion = false;
 
-        super(2500, 400, initializePulse, stepCount, waitTime, inversion)
+        super(2000, 1100, initializePulse, stepCount, waitTime, inversion, false)
         this.pulse = initializePulse;
         this.chanelNumber = 8;
         this.armNumber = 5;

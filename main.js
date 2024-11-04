@@ -81,6 +81,8 @@ class MainScene extends Container {
       name: "right",
       upDown : 0,
       leftRight: 0,
+      stop: false,
+      home: false,
     },
 
   }
@@ -88,6 +90,7 @@ class MainScene extends Container {
   #_leftInputManager;
   #_rightInputManager;
   #_hardwareModel;
+  #_hardwareController;
 
   /**
    * コンストラクタ
@@ -96,6 +99,7 @@ class MainScene extends Container {
    */
   constructor(vpadInputManager, hardwareModel){
     super();
+    this.#_hardwareController = new HardwareController(vpadInputManager, hardwareModel);
     this.#_hardwareModel = hardwareModel;
     this.inputManager = vpadInputManager;
     this.#_leftInputManager = this.inputManager.inputLeft;
@@ -174,14 +178,12 @@ class MainScene extends Container {
         output.upDown++;
         break;
       case input.keyDirections.UP_RIGHT:
-        output.upDown += oblique;
         output.leftRight += oblique;
         break;
       case input.keyDirections.RIGHT:
         output.leftRight++;     
         break;
       case input.keyDirections.DOWN_RIGHT:
-        output.upDown -= oblique;
         output.leftRight += oblique;     
         break;
       case input.keyDirections.DOWN:
@@ -189,13 +191,11 @@ class MainScene extends Container {
         break;
       case input.keyDirections.DOWN_LEFT:
         output.upDown -= oblique;
-        output.leftRight -= oblique;     
         break;
       case input.keyDirections.LEFT:
         output.leftRight--;     
         break;
       case input.keyDirections.UP_LEFT:
-        output.upDown += oblique;
         output.leftRight -= oblique;     
         break;
       default:
@@ -204,6 +204,7 @@ class MainScene extends Container {
 
     return dir;
   }
+
 
   /**
    * ボタンの状態をチェックします。
@@ -237,9 +238,23 @@ class MainScene extends Container {
       return input.keyStatus.RELEASE;
     }
 
+    if (input.checkButton("Stop") == input.keyStatus.RELEASE) {
+      //ホームボタンを離した時
+        output.stop = true;
+        controller.onButtonRelease(output);
+        output.stop = false;
+        return input.keyStatus.RELEASE;
+    }
+
+    if (input.checkButton("A") == input.keyStatus.RELEASE) {
+      output.home = true;
+      controller.onButtonRelease(output);
+      output.home = false;
+      return input.keyStatus.RELEASE;  
+    }
+
     return input.keyStatus.UNDOWN;
   }
-
   //
   // 方向リセット
   //
