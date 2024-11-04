@@ -629,8 +629,8 @@ class Arm2 extends AbstractArmModel {
      */
     constructor() {
         const inversion = false;
-        const maxPulse = 2500;
-        const minPulse = 400;
+        const maxPulse = 1400;
+        const minPulse = 600;
         const initializePulse = 1000;
         const stepCount = 2;
         const waitTime = 5;
@@ -692,9 +692,9 @@ class Arm5 extends AbstractArmModel {
         const initializePulse = 1600;
         const stepCount = 2;
         const waitTime = 1;
-        const inversion = true;
+        const inversion = false;
 
-        super(2500, 400, initializePulse, stepCount, waitTime, inversion, false)
+        super(2000, 1100, initializePulse, stepCount, waitTime, inversion, false)
         this.pulse = initializePulse;
         this.chanelNumber = 8;
         this.armNumber = 5;

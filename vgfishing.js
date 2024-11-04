@@ -16,9 +16,9 @@ class FishingGame
     {      
         document.getElementById("t1").innerHTML = "<div style=\"color:white\">Loading..</div>";
         const pixiApp = new PIXI.Application({
-            width: width, 
-            height: height,                       
-            backgroundColor: color,      
+            width: 0, 
+            height: 0,                       
+            backgroundColor: 0,      
             resolution: 1,
             autoDensity: true
         })
